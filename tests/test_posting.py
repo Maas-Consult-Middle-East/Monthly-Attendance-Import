@@ -134,6 +134,23 @@ class PostingTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuleError, 'Select the'):
                     s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
 
+    def test_approved_leave_excludes_holidays_without_creating_attendance(self):
+        entry = Entry('0007', date(2024, 11, 1), None, None, 'VACATION', 'F6/F7')
+        employee = frappe._dict(name='E', company='C', status='Active')
+        policy = frappe._dict(vacation_rule='Approved Leave', vacation_leave_type='Annual', holiday_rule='Use daily rule')
+        leave = frappe._dict(name='APPROVED', half_day=0, leave_type='Annual')
+        with patch.object(s, 'resolve_shift', return_value=None), \
+             patch.object(s, 'is_holiday_for', return_value=True), \
+             patch.object(s, 'nowdate', return_value='2024-12-01'), \
+             patch.object(frappe, 'get_doc', return_value=MagicMock(include_holiday=0)), \
+             patch.object(s, 'current_rows', side_effect=[[leave], []]), \
+             patch.object(frappe, 'new_doc') as new_doc:
+            row, attendance, overtime = s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
+            self.assertEqual(row['result'], 'Skipped')
+            self.assertIn('Holiday excluded', row['message'])
+            self.assertIsNone(attendance)
+            new_doc.assert_not_called()
+
     def test_all_native_writers_use_same_lock(self):
         from monthly_attendance_import.hooks import doc_events
         for dt in ('Attendance', 'Leave Application', 'Shift Assignment'):

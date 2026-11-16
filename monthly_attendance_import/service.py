@@ -204,7 +204,8 @@ def plan_entry(batch, policy, entry, employee):
     if entry.date > getdate(nowdate()):
         raise RuleError("Future attendance/overtime requires manual processing")
     shift = resolve_shift(employee, entry.date, policy)
-    if is_holiday_for(employee.name, shift, entry.date):
+    holiday = is_holiday_for(employee.name, shift, entry.date)
+    if holiday:
         if policy.holiday_rule == "Skip":
             if decision.overtime:
                 raise RuleError("Holiday skip cannot discard overtime")
@@ -226,6 +227,14 @@ def plan_entry(batch, policy, entry, employee):
         if expected_type and leave[0].leave_type != expected_type:
             raise RuleError(f"{entry.code} requires {expected_type}; approved leave is {leave[0].leave_type}")
         frappe.get_doc("Leave Application", leave[0].name).check_permission("read")
+        leave_type = frappe.get_doc("Leave Type", leave[0].leave_type, for_update=True)
+        leave_type.check_permission("read")
+        if holiday and not leave_type.include_holiday:
+            if current_rows("Attendance", [("employee", "=", employee.name),
+                ("attendance_date", "=", entry.date), ("docstatus", "<", 2)]):
+                raise RuleError("Existing attendance on a holiday excluded from leave requires review")
+            row.update(message="Holiday excluded by approved Leave Type: no Attendance", proposed_status=None)
+            return row, None, None
     elif leave:
         raise RuleError("Conflicts with approved leave; review through the native leave workflow")
     attendance = None

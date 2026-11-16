@@ -52,6 +52,8 @@ The user-supplied leave types map `VACATION` to **ANNUAL LEAVE** and `SL` to **S
 
 Native leave approval creates submitted On Leave Attendance. The importer reuses it without changes only when the full-day approved application, employee/date/company, type, hours and other relevant values match exactly, and no custom Attendance workflow is active. Other submitted Attendance still conflicts. This exception records an existing native leave result; it does not approve leave or submit Attendance.
 
+When the approved Leave Type excludes holidays, dates on the effective holiday calendar are skipped without creating leave Attendance. Any existing Attendance on those excluded dates requires review. This preserves native leave-day counting (for example, October 2026 has 26 leave days when its five Fridays are excluded). The focused portable suite passes 33 tests.
+
 Leave-reuse verification: 30 portable tests and all 8 database tests passed. An initial database run during simultaneous demo setup encountered a lost savepoint; the isolated rerun passed. Run setup separately from integration tests.
 
 Local demo follow-up: a clearly labelled synthetic annual-leave allocation and approval (`HR-LAP-2026-00001`) now cover October for employee `2605540463`. HRMS created 31 submitted leave Attendance records through its own approval process. Revalidation of `MAI-2026-00004` is **Ready: 1,079 proposed, 347 skipped, zero errors**. The skipped count includes those 31 unchanged leave records. The importer has not posted this batch; its remaining Attendance and Overtime Slip proposals remain available for Import. This test setup is not a production leave entitlement or approval.
