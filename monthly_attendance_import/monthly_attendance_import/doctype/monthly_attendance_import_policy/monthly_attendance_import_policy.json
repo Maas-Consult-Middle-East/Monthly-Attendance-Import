@@ -28,7 +28,9 @@
     "standard_working_hours",
     "p_hours",
     "f_rule",
-    "vacation_rule"
+    "vacation_rule",
+    "vacation_leave_type",
+    "sl_leave_type"
   ],
   "fields": [
     {
@@ -178,6 +180,18 @@
       "label": "VACATION Rule",
       "fieldtype": "Select",
       "options": "\nBlock\nApproved Leave"
+    },
+    {
+      "fieldname": "vacation_leave_type",
+      "label": "VACATION Leave Type",
+      "fieldtype": "Link",
+      "options": "Leave Type"
+    },
+    {
+      "fieldname": "sl_leave_type",
+      "label": "SL Leave Type",
+      "fieldtype": "Link",
+      "options": "Leave Type"
     }
   ],
   "istable": 0,

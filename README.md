@@ -48,6 +48,8 @@ For a multi-sheet workbook, enter the exact **Worksheet** name on the batch. Onl
 
 The confirmed October codes are supported explicitly: `P` creates Present with the policy's **Normal Hours for P** (8 for the local demo); `F` skips Attendance and retains positive overtime when its policy is confirmed; `AB` is configured Absent; `VACATION` requires approved leave. An O.T dash means no overtime, distinct from explicit zero. A code merged across dates within one employee's N.T/O.T pair applies to each covered N.T date and retains the merged source reference. Blank merged ranges remain missing data; merged numeric hours, formulas and cross-employee codes are rejected.
 
+The user-supplied leave types map `VACATION` to **ANNUAL LEAVE** and `SL` to **Sick Leave**, configured as explicit Link fields in the company policy. An approved application of another type cannot satisfy these codes. The local demo also contains the supplied **EMERGENCY** type; EA and UH remain unmapped because their labels alone do not establish which leave type to charge. No allocation or leave approval is created by the importer. The mapping regression suite passes 30 portable tests.
+
 The fixed daily range excludes totals from AK onward, notes, signatures and unrelated dates. November 31 and non-leap February 29 must be empty, even of zero. Formulas and Excel errors in daily cells are rejected. Hours must be finite, nonnegative, at most two decimal places, and normal plus overtime cannot exceed 24. Blanks, zeros and codes remain distinct.
 
 Limits: one explicitly selected worksheet per batch, 5 MiB compressed / 30 MiB expanded ZIP, 1,000 ZIP members, 2,000 rows × 80 columns in the selected worksheet, 100 employees. Nothing in its input range is silently truncated.

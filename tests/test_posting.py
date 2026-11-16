@@ -103,6 +103,26 @@ class PostingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuleError, 'approved leave'):
                 s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
 
+    def test_leave_code_requires_selected_type_and_approved_application(self):
+        employee = frappe._dict(name='E', company='C', status='Active')
+        for code, expected in [('VACATION', 'ANNUAL LEAVE'), ('SL', 'Sick Leave')]:
+            entry = Entry('0007', date(2024, 11, 1), None, None, code, 'F6/F7')
+            policy = frappe._dict({code.lower() + '_rule': 'Approved Leave', code.lower() + '_leave_type': expected})
+            with patch.object(s, 'resolve_shift', return_value=None), \
+                 patch.object(s, 'is_holiday_for', return_value=False), \
+                 patch.object(s, 'nowdate', return_value='2024-12-01'), \
+                 patch.object(frappe, 'get_doc', return_value=MagicMock()) as get_doc, \
+                 patch.object(s, 'current_rows', return_value=[]) as rows:
+                with self.assertRaisesRegex(RuleError, expected):
+                    s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
+                get_doc.return_value.check_permission.assert_called_with('read')
+                rows.return_value = [frappe._dict(half_day=0, leave_type='Wrong Type')]
+                with self.assertRaisesRegex(RuleError, 'approved leave is Wrong Type'):
+                    s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
+                policy[code.lower() + '_leave_type'] = None
+                with self.assertRaisesRegex(RuleError, 'Select the'):
+                    s.plan_entry(frappe._dict(company='C'), policy, entry, employee)
+
     def test_all_native_writers_use_same_lock(self):
         from monthly_attendance_import.hooks import doc_events
         for dt in ('Attendance', 'Leave Application', 'Shift Assignment'):

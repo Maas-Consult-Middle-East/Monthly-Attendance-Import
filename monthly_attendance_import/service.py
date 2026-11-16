@@ -213,8 +213,15 @@ def plan_entry(batch, policy, entry, employee):
         ("docstatus", "=", 1), ("status", "=", "Approved"),
         ("from_date", "<=", entry.date), ("to_date", ">=", entry.date)])
     if decision.status == "On Leave":
+        expected_type = policy.get(entry.code.lower() + "_leave_type") if entry.code in ("VACATION", "SL") else None
+        if entry.code in ("VACATION", "SL") and not expected_type:
+            raise RuleError(f"Select the {entry.code} Leave Type in the import policy")
+        if expected_type:
+            frappe.get_doc("Leave Type", expected_type).check_permission("read")
         if len(leave) != 1 or (leave[0].half_day and getdate(leave[0].half_day_date) == entry.date):
-            raise RuleError("Leave code requires exactly one approved full-day Leave Application")
+            raise RuleError(f"Leave code requires exactly one approved full-day Leave Application{(' of type ' + expected_type) if expected_type else ''}")
+        if expected_type and leave[0].leave_type != expected_type:
+            raise RuleError(f"{entry.code} requires {expected_type}; approved leave is {leave[0].leave_type}")
     elif leave:
         raise RuleError("Conflicts with approved leave; review through the native leave workflow")
     attendance = None
