@@ -84,7 +84,7 @@ class TestMonthlyIntegration(unittest.TestCase):
         self.assertEqual(attendance.working_hours, 8)
 
     def test_present_code_preserves_confirmed_hours(self):
-        self.policy.p_hours = 8
+        self.policy.present_hours = 9
         self.policy.save()
         batch = self.batch(hours='P')
         service.execute(batch)
@@ -92,7 +92,7 @@ class TestMonthlyIntegration(unittest.TestCase):
         self.assertEqual(batch.status, 'Imported', batch.error)
         attendance = frappe.get_doc('Attendance', batch.results[0].attendance)
         self.assertEqual(attendance.status, 'Present')
-        self.assertEqual(attendance.working_hours, 8)
+        self.assertEqual(attendance.working_hours, 9)
 
     def test_weekly_off_retains_native_overtime_without_attendance(self):
         self.policy.f_rule = 'Skip attendance; retain overtime'

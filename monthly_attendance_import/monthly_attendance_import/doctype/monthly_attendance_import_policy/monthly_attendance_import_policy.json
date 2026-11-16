@@ -26,7 +26,6 @@
     "md_rule",
     "overtime_type",
     "standard_working_hours",
-    "p_hours",
     "f_rule",
     "vacation_rule",
     "vacation_leave_type",
@@ -60,7 +59,8 @@
     {
       "fieldname": "present_hours",
       "label": "Present Hours",
-      "fieldtype": "Float"
+      "fieldtype": "Float",
+      "description": "Normal hours recorded for P, and the minimum normal hours for numeric entries to count as Present."
     },
     {
       "fieldname": "half_day_hours",
@@ -161,12 +161,6 @@
       "fieldname": "standard_working_hours",
       "fieldtype": "Float",
       "label": "Standard Working Hours",
-      "precision": "2"
-    },
-    {
-      "fieldname": "p_hours",
-      "label": "Normal Hours for P",
-      "fieldtype": "Float",
       "precision": "2"
     },
     {

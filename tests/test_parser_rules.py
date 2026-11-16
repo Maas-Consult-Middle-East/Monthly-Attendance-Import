@@ -114,13 +114,24 @@ class ParserTests(unittest.TestCase):
 class RulesTests(unittest.TestCase):
     def test_present_weekly_off_and_vacation(self):
         entry = replace(self.entry, normal_hours=None, code='P')
-        with self.assertRaises(RuleError): decide(entry, self.policy)
-        self.policy.update(p_hours=8, f_rule='Skip attendance; retain overtime', vacation_rule='Approved Leave')
+        with self.assertRaises(RuleError): decide(entry, dict(self.policy, present_hours=0))
+        self.policy.update(f_rule='Skip attendance; retain overtime', vacation_rule='Approved Leave')
         self.assertEqual(decide(entry, self.policy).status, 'Present')
         self.assertEqual(decide(replace(entry, code='F', overtime_hours=Decimal(5)), self.policy).overtime, 5)
         self.assertIsNone(decide(replace(entry, code='F'), self.policy).status)
         self.assertEqual(decide(replace(entry, code='VACATION', overtime_hours=None), self.policy).status, 'On Leave')
         with self.assertRaises(RuleError): decide(replace(entry, overtime_hours=Decimal(17)), self.policy)
+
+    def test_p_uses_present_hours_even_with_old_separate_value(self):
+        from monthly_attendance_import.rules import normal_hours
+        entry = replace(self.entry, normal_hours=None, code='P')
+        policy = dict(self.policy, present_hours=9, p_hours=6)
+        self.assertEqual(normal_hours(entry, policy), 9)
+        policy['present_hours'] = 7
+        self.assertEqual(normal_hours(entry, policy), 7)
+        for value in (0, -1, 25, 'NaN', 'Infinity'):
+            with self.assertRaises(RuleError):
+                normal_hours(entry, dict(policy, present_hours=value))
 
     def setUp(self):
         self.entry = Entry('0007', date(2024, 11, 1), Decimal(8), Decimal(2), None, 'F6/F7')

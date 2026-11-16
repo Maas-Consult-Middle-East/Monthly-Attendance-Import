@@ -17,9 +17,9 @@ class Decision:
 def normal_hours(entry, policy):
     if entry.code != "P":
         return entry.normal_hours
-    hours = Decimal(str(policy.get("p_hours") or 0))
+    hours = Decimal(str(policy.get("present_hours") or 0))
     if not hours.is_finite() or not 0 < hours <= 24:
-        raise RuleError("Configure normal hours for P (greater than 0, at most 24)")
+        raise RuleError("Configure Present Hours for P (greater than 0, at most 24)")
     if hours + (entry.overtime_hours or 0) > 24:
         raise RuleError("P normal hours plus overtime exceed 24")
     return hours
