@@ -49,7 +49,7 @@ For a checkout already inside the bench that is not yet registered, use the benc
 
 Keep Redis and the **long** worker running (`bench worker --queue long` in development). Restart all web and worker processes together after installation: all Attendance, Leave Application and Shift Assignment writers must load this app's lock hooks. Pause importing during a mixed-version rollout. No external service is introduced beyond the bench's existing Redis/RQ infrastructure.
 
-All DocTypes, workspace, form script and template are version-controlled. No fixtures, custom fields, data migration, destructive conversion or backfill is needed. Standard app schema synchronization creates only this app's tables/workspace. There is no automatic site installation or production import in this delivery.
+All DocTypes, workspace, form script and template are version-controlled. No fixtures, custom fields, destructive conversion or backfill is needed. An idempotent pre-model-sync patch renames the original workspace to Monthly Attendance Imports, preserving records and preventing its route from shadowing the import DocType. Standard app schema synchronization creates only this app's tables/workspace. There is no automatic site installation or production import in this delivery.
 
 ## Configure business rules
 
@@ -73,7 +73,7 @@ These are explicit scope limits, not inferred company policy. Required unset rul
 
 ## Use and approve
 
-1. Open the **Monthly Attendance Import** workspace as an HR Manager.
+1. Open the **Monthly Attendance Imports** workspace as an HR Manager.
 2. Create a batch with company, month and year, then save it.
 3. Download the blank template or use a conforming reference workbook. Upload it as a **private** attachment to that saved batch.
 4. Choose **Validate & Preview**. Inspect employee/date, original normal/overtime values, attendance code, source cells, decisions, errors and existing links. Fix the workbook or company policy, save and preview again.
@@ -108,7 +108,7 @@ env/bin/python -m compileall -q apps/monthly_attendance_import
 
 The wheel and source distribution also built successfully using cached build dependencies (`uv build --offline`).
 
-**22 unit tests passed.** Tests cover valid pairs, leading zeros, blanks/zero, codes and half-day thresholds, November 31/leap February, invalid hours/formulas/errors, fixed boundaries, employee ambiguity/company/permissions, leave conflict, identical/conflicting attendance state, stale previews, whole-batch preflight, rollback-link cleanup and shared locking hooks. Service I/O is mocked in unit tests; these do **not** establish real database concurrency or live import correctness. The committed template was rendered and visually checked; its period customization and parser compatibility are exercised by tests.
+**23 unit tests passed.** Tests cover valid pairs, leading zeros, blanks/zero, codes and half-day thresholds, November 31/leap February, invalid hours/formulas/errors, fixed boundaries, employee ambiguity/company/permissions, leave conflict, identical/conflicting attendance state, stale previews, whole-batch preflight, rollback-link cleanup and shared locking hooks. Service I/O is mocked in unit tests; these do **not** establish real database concurrency or live import correctness. The committed template was rendered and visually checked; its period customization and parser compatibility are exercised by tests.
 
 Real database tests are included separately. On a disposable site whose name starts with `test_monthly_`, install ERPNext, HRMS and this app, enable tests, then run:
 
@@ -124,3 +124,7 @@ They create/commit isolated fixtures and test real inserts/retries/conflicts, at
 Forward rollout is additive: back up, install app tables/workspace, migrate/build, restart all workers/web, configure policy, test, then enable imports. Existing attendance and check-in paths keep their data shapes and receive only serialization hooks.
 
 For operational rollback, disable company import policies, allow running jobs to finish or fail, and keep this app installed so audit records and overtime links remain readable. Deploy the previous app version if needed after validating schema compatibility. Do **not** uninstall the app to disable it: uninstalling drops its tables and would destroy overtime/audit history. Any deletion/uninstall or cleanup of business records requires a separate approved retention/migration plan and backups. This delivery performs no destructive contraction.
+
+## Route correction verified on the demo site
+
+The workspace is named **Monthly Attendance Imports** (plural) at `/app/monthly-attendance-imports`. The DocType stays **Monthly Attendance Import** at `/app/monthly-attendance-import`. Frappe resolves workspace routes before DocType routes; sharing a slug hid both the list and individual forms. The rename migration was applied to `monthly-import.localhost`, and the saved batch form with Download Template, Validate & Preview and Import was verified in Chrome.

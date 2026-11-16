@@ -1,8 +1,8 @@
 {
   "doctype": "Workspace",
-  "name": "Monthly Attendance Import",
-  "label": "Monthly Attendance Import",
-  "title": "Monthly Attendance Import",
+  "name": "Monthly Attendance Imports",
+  "label": "Monthly Attendance Imports",
+  "title": "Monthly Attendance Imports",
   "module": "Monthly Attendance Import",
   "public": 1,
   "is_hidden": 0,
