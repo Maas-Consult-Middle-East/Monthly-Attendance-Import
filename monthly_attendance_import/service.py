@@ -382,6 +382,7 @@ def start_import(name):
     batch.requested_by = frappe.session.user
     batch.status = "Queued"
     save_owned(batch)
+    report_progress(batch, "Queued", 0, 0)
     # Monthly matrices can contain 3100 dates: execute off the web request,
     # retaining initiating authorization and one transaction for all business writes.
     frappe.enqueue("monthly_attendance_import.service.run_import", name=batch.name,
@@ -402,15 +403,39 @@ def run_import(name, actor):
         frappe.set_user(original_user)
 
 
+def report_progress(batch, phase, completed, total):
+    # Progress is advisory, outside the business transaction; never commit records
+    # to expose intermediate results. A cache outage must not change posting.
+    try:
+        frappe.cache.set_value("monthly-import-progress:" + batch.name,
+            dict(phase=phase, completed=completed, total=total), expires_in_sec=3600)
+    except Exception:
+        pass
+
+
+@frappe.whitelist()
+def get_progress(name):
+    batch = frappe.get_doc(BATCH, name)
+    batch.check_permission("read")
+    frappe.get_doc("Company", batch.company).check_permission("read")
+    progress = (frappe.cache.get_value("monthly-import-progress:" + name) or {}) if batch.status == "Queued" else {}
+    return dict(status=batch.status, phase=progress.get("phase", batch.status),
+        completed=progress.get("completed", 0), total=progress.get("total", 0))
+
+
 def execute(batch):
     plan, fingerprint = [], ""
     frappe.db.savepoint("monthly_post")
     try:
+        report_progress(batch, "Validating", 0, 0)
         plan, errors, fingerprint = build_plan(batch)
         if errors:
             raise RuleError("\n".join(errors))
         if fingerprint != batch.fingerprint:
             raise RuleError("Preview is stale: input, policy, employee, workflow or existing records changed; preview again")
+        total = len(plan) + sum(bool(o) for _, _, o in plan)
+        completed = 0
+        report_progress(batch, "Processing entries", 0, total)
         for row, attendance, overtime in plan:
             try:
                 if attendance:
@@ -421,6 +446,9 @@ def execute(batch):
                     row["attendance"] = attendance.name
                 if attendance:
                     row["result"] = "Created"
+                completed += 1
+                if completed % 25 == 0 or completed == len(plan):
+                    report_progress(batch, "Processing entries", completed, total)
             except Exception as exc:
                 raise RuleError(f"{row['employee_number']} {row['attendance_date']} ({row['source_cells']}): {exc}") from exc
         from monthly_attendance_import.native_overtime import insert as insert_overtime
@@ -428,8 +456,11 @@ def execute(batch):
             if overtime:
                 try:
                     insert_overtime(overtime)
+                    completed += 1
+                    report_progress(batch, "Recording overtime", completed, total)
                 except Exception as exc:
                     raise RuleError(f"{row['employee_number']} {row['attendance_date']} ({row['source_cells']}): {exc}") from exc
+        report_progress(batch, "Finalizing", completed, total)
         record(batch, "Import", plan, [], fingerprint, "Imported")
     except Exception as exc:
         frappe.db.rollback(save_point="monthly_post")

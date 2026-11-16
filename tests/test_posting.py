@@ -12,6 +12,27 @@ from monthly_attendance_import.rules import RuleError
 
 
 class PostingTests(unittest.TestCase):
+    def test_progress_permissions_and_committed_status(self):
+        batch = MagicMock(status='Queued')
+        with patch.object(frappe, 'get_doc', return_value=batch), patch.object(frappe, 'cache', MagicMock()) as cache:
+            batch.check_permission.side_effect = frappe.PermissionError('denied')
+            with self.assertRaises(frappe.PermissionError): s.get_progress('PRIVATE')
+            cache.get_value.assert_not_called()
+            batch.check_permission.side_effect = None
+            cache.get_value.return_value = dict(phase='Finalizing', completed=10, total=10)
+            self.assertEqual(s.get_progress('PRIVATE')['status'], 'Queued')
+            batch.status = 'Failed'
+            result = s.get_progress('PRIVATE')
+            self.assertEqual(result['phase'], 'Failed')
+            self.assertEqual(result['completed'], 0)
+
+    def test_progress_cache_failure_does_not_change_transaction(self):
+        with patch.object(frappe, 'cache', MagicMock()) as cache, patch.object(frappe, 'db', MagicMock()) as db:
+            cache.set_value.side_effect = RuntimeError('cache unavailable')
+            s.report_progress(frappe._dict(name='BATCH'), 'Processing entries', 25, 100)
+            db.commit.assert_not_called()
+            db.rollback.assert_not_called()
+
     def test_atomic_failure_clears_rolled_back_links(self):
         batch = MagicMock(fingerprint='fresh')
         attendance = MagicMock(status='Present', docstatus=0)

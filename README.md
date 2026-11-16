@@ -88,6 +88,8 @@ Dates outside active employment or in the future fail. Native Attendance validat
 4. Correct inputs/policy and preview again. **Import** queues one atomic job.
 5. Reload the batch and follow Attendance / Overtime Slip links. Drafts remain for review; the importer never submits them.
 
+The form includes an import progress bar. While queued it polls a permission-checked status endpoint every two seconds and shows validation, processing entries, overtime and finalization. Counts include entry-processing steps and native overtime slips; they are not committed-record counts. Progress stays below 100% until the committed batch status is Imported. Completed/failed results reload automatically. Progress uses an expiring site-local cache and never commits the business transaction. Cache failures do not change posting; no WebSocket service is required. Leaving the form stops polling. Progress tests and the existing portable suite pass (35 tests); JavaScript syntax is checked.
+
 One native slip is created per employee/month, with one detail per positive-overtime date. Attendance stores normal hours in `working_hours`. Overtime is recorded only in native Slip details; Attendance auto-overtime fields are not populated as a second path. Details link the newly created or identical existing Attendance where applicable. Explicit month boundaries avoid fabricating salary-structure assignments.
 
 Counts are employee-day results, not document counts: a Created result can link both an Attendance and a shared monthly Slip. Source files, batch results, links, actor and preview/import history are retained. New file uploads preserve old attachments. Audit files/batches cannot be deleted through normal APIs.
