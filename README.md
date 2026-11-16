@@ -50,6 +50,12 @@ The confirmed October codes are supported explicitly: `P` creates Present with t
 
 The user-supplied leave types map `VACATION` to **ANNUAL LEAVE** and `SL` to **Sick Leave**, configured as explicit Link fields in the company policy. An approved application of another type cannot satisfy these codes. The local demo also contains the supplied **EMERGENCY** type; EA and UH remain unmapped because their labels alone do not establish which leave type to charge. No allocation or leave approval is created by the importer. The mapping regression suite passes 30 portable tests.
 
+Native leave approval creates submitted On Leave Attendance. The importer reuses it without changes only when the full-day approved application, employee/date/company, type, hours and other relevant values match exactly, and no custom Attendance workflow is active. Other submitted Attendance still conflicts. This exception records an existing native leave result; it does not approve leave or submit Attendance.
+
+Leave-reuse verification: 30 portable tests and all 8 database tests passed. An initial database run during simultaneous demo setup encountered a lost savepoint; the isolated rerun passed. Run setup separately from integration tests.
+
+Local demo follow-up: a clearly labelled synthetic annual-leave allocation and approval (`HR-LAP-2026-00001`) now cover October for employee `2605540463`. HRMS created 31 submitted leave Attendance records through its own approval process. Revalidation of `MAI-2026-00004` is **Ready: 1,079 proposed, 347 skipped, zero errors**. The skipped count includes those 31 unchanged leave records. The importer has not posted this batch; its remaining Attendance and Overtime Slip proposals remain available for Import. This test setup is not a production leave entitlement or approval.
+
 The fixed daily range excludes totals from AK onward, notes, signatures and unrelated dates. November 31 and non-leap February 29 must be empty, even of zero. Formulas and Excel errors in daily cells are rejected. Hours must be finite, nonnegative, at most two decimal places, and normal plus overtime cannot exceed 24. Blanks, zeros and codes remain distinct.
 
 Limits: one explicitly selected worksheet per batch, 5 MiB compressed / 30 MiB expanded ZIP, 1,000 ZIP members, 2,000 rows × 80 columns in the selected worksheet, 100 employees. Nothing in its input range is silently truncated.

@@ -144,10 +144,13 @@ def is_holiday_for(employee, shift, day):
     return bool(get_holiday_dates_between(holiday_list, day, day))
 
 
-def same_attendance(existing, proposed):
+def same_attendance(existing, proposed, approved_leave=False):
     fields = ("employee", "company", "attendance_date", "status", "shift", "leave_type",
               "leave_application", "half_day_status", "modify_half_day_status", "late_entry", "early_exit")
-    if existing.docstatus != 0:
+    from frappe.model.workflow import get_workflow_name, get_workflow
+    native_leave = (approved_leave and existing.docstatus == 1 and proposed.status == "On Leave"
+        and proposed.leave_application and not get_workflow_name("Attendance"))
+    if existing.docstatus != 0 and not native_leave:
         return False
     for field in fields:
         if str(existing.get(field) or "") != str(proposed.get(field) or ""):
@@ -157,7 +160,6 @@ def same_attendance(existing, proposed):
     if (existing.in_time or existing.out_time or existing.attendance_request
         or existing.get("overtime_type") or existing.get("actual_overtime_duration")):
         return False
-    from frappe.model.workflow import get_workflow_name, get_workflow
     if get_workflow_name("Attendance"):
         wf = get_workflow("Attendance")
         if existing.get(wf.workflow_state_field) != proposed.get(wf.workflow_state_field):
@@ -222,6 +224,7 @@ def plan_entry(batch, policy, entry, employee):
             raise RuleError(f"Leave code requires exactly one approved full-day Leave Application{(' of type ' + expected_type) if expected_type else ''}")
         if expected_type and leave[0].leave_type != expected_type:
             raise RuleError(f"{entry.code} requires {expected_type}; approved leave is {leave[0].leave_type}")
+        frappe.get_doc("Leave Application", leave[0].name).check_permission("read")
     elif leave:
         raise RuleError("Conflicts with approved leave; review through the native leave workflow")
     attendance = None
@@ -244,7 +247,7 @@ def plan_entry(batch, policy, entry, employee):
             raise RuleError("Multiple existing attendance records require manual review")
         old = frappe.get_doc("Attendance", existing[0].name, for_update=True)
         old.check_permission("read")
-        if not same_attendance(old, attendance):
+        if not same_attendance(old, attendance, approved_leave=decision.status == "On Leave" and bool(leave)):
             raise RuleError("Conflicting attendance values or workflow state; existing record is untouched")
         row["attendance"] = old.name
         attendance = None
@@ -259,7 +262,7 @@ def plan_entry(batch, policy, entry, employee):
         raise RuleError("Legacy custom overtime exists for this date; reconcile it before native import")
     row["result"] = "Proposed" if attendance or decision.overtime else "Skipped"
     if row["result"] == "Skipped" and row.get("attendance"):
-        row["message"] = "Identical draft Attendance already exists"
+        row["message"] = "Matching approved leave Attendance already exists" if decision.status == "On Leave" else "Identical draft Attendance already exists"
     return row, attendance, None
 
 

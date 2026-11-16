@@ -91,6 +91,17 @@ class PostingTests(unittest.TestCase):
             self.assertFalse(s.same_attendance(old, proposed))
             old.working_hours, old.docstatus = 8, 1
             self.assertFalse(s.same_attendance(old, proposed))
+            old.status = proposed.status = 'On Leave'
+            old.working_hours = proposed.working_hours = 0
+            old.leave_application = proposed.leave_application = 'APPROVED-LEAVE'
+            old.leave_type = proposed.leave_type = 'ANNUAL LEAVE'
+            self.assertFalse(s.same_attendance(old, proposed))
+            self.assertTrue(s.same_attendance(old, proposed, approved_leave=True))
+            old.leave_application = 'DIFFERENT-LEAVE'
+            self.assertFalse(s.same_attendance(old, proposed, approved_leave=True))
+            old.leave_application = proposed.leave_application
+            with patch('frappe.model.workflow.get_workflow_name', return_value='Custom Workflow'):
+                self.assertFalse(s.same_attendance(old, proposed, approved_leave=True))
 
     def test_leave_conflict_blocks_attendance(self):
         entry = Entry('0007', date(2024, 11, 1), Decimal(8), None, None, 'F6/F7')

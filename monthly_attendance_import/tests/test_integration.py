@@ -107,6 +107,26 @@ class TestMonthlyIntegration(unittest.TestCase):
         self.assertEqual(slip.docstatus, 0)
         self.assertFalse(slip.overtime_details[0].reference_document)
 
+    def test_native_approved_leave_is_reused_unchanged(self):
+        leave_type = frappe.get_doc(dict(doctype='Leave Type', leave_type_name='MAI Annual ' + self.suffix, include_holiday=1)).insert()
+        frappe.get_doc(dict(doctype='Leave Allocation', employee=self.employee.name,
+            leave_type=leave_type.name, from_date='2024-01-01', to_date='2024-12-31', new_leaves_allocated=31)).insert().submit()
+        leave = frappe.get_doc(dict(doctype='Leave Application', employee=self.employee.name,
+            leave_type=leave_type.name, from_date='2024-11-01', to_date='2024-11-01',
+            status='Approved', leave_approver='Administrator')).insert()
+        leave.submit()
+        name = frappe.db.get_value('Attendance', {'employee':self.employee.name, 'leave_application':leave.name}, 'name')
+        before = frappe.get_doc('Attendance', name).as_dict()
+        self.policy.update(dict(vacation_rule='Approved Leave', vacation_leave_type=leave_type.name))
+        self.policy.save()
+        batch = self.batch(hours='VACATION', overtime=None)
+        service.execute(batch)
+        batch.reload()
+        self.assertEqual(batch.status, 'Imported', batch.error)
+        self.assertEqual(batch.created_count, 0)
+        self.assertEqual(batch.results[0].attendance, name)
+        self.assertEqual(frappe.get_doc('Attendance', name).as_dict(), before)
+
     def test_database_atomic_rollback(self):
         batch = self.batch()
         from hrms.hr.doctype.overtime_slip.overtime_slip import OvertimeSlip
