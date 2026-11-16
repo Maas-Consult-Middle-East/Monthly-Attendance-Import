@@ -1,0 +1,100 @@
+{
+  "doctype": "DocType",
+  "name": "Monthly Attendance Import Result",
+  "module": "Monthly Attendance Import",
+  "engine": "InnoDB",
+  "field_order": [
+    "employee_number",
+    "employee",
+    "attendance_date",
+    "normal_hours",
+    "overtime_hours",
+    "attendance_code",
+    "source_cells",
+    "proposed_status",
+    "result",
+    "message",
+    "attendance",
+    "overtime_entry"
+  ],
+  "fields": [
+    {
+      "fieldname": "employee_number",
+      "label": "Employee Number",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "employee",
+      "label": "Employee",
+      "fieldtype": "Link",
+      "options": "Employee"
+    },
+    {
+      "fieldname": "attendance_date",
+      "label": "Attendance Date",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "normal_hours",
+      "label": "Normal Hours",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "overtime_hours",
+      "label": "Overtime Hours",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "attendance_code",
+      "label": "Attendance Code",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "source_cells",
+      "label": "Source Cells",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "proposed_status",
+      "label": "Proposed Status",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "result",
+      "label": "Result",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "message",
+      "label": "Message",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "attendance",
+      "label": "Attendance",
+      "fieldtype": "Link",
+      "options": "Attendance",
+      "in_list_view": 1,
+      "columns": 3
+    },
+    {
+      "fieldname": "overtime_entry",
+      "label": "Overtime Entry",
+      "fieldtype": "Link",
+      "options": "Employee Overtime Entry"
+    }
+  ],
+  "istable": 1,
+  "track_changes": 0,
+  "permissions": []
+}

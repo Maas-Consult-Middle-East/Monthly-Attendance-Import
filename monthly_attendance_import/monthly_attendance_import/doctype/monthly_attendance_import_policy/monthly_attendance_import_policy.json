@@ -1,0 +1,162 @@
+{
+  "doctype": "DocType",
+  "name": "Monthly Attendance Import Policy",
+  "module": "Monthly Attendance Import",
+  "engine": "InnoDB",
+  "field_order": [
+    "company",
+    "enabled",
+    "identifier_field",
+    "thresholds_confirmed",
+    "present_hours",
+    "half_day_hours",
+    "half_day_remainder",
+    "blank_rule",
+    "zero_rule",
+    "overtime_only_rule",
+    "shift_rule",
+    "holiday_rule",
+    "ea_rule",
+    "ab_rule",
+    "sb_rule",
+    "rh_rule",
+    "hd_rule",
+    "sl_rule",
+    "uh_rule",
+    "md_rule"
+  ],
+  "fields": [
+    {
+      "fieldname": "company",
+      "label": "Company",
+      "fieldtype": "Link",
+      "options": "Company",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "enabled",
+      "label": "Enabled",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "identifier_field",
+      "label": "Identifier Field",
+      "fieldtype": "Select",
+      "options": "\nname\nemployee_number"
+    },
+    {
+      "fieldname": "thresholds_confirmed",
+      "label": "Thresholds Confirmed",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "present_hours",
+      "label": "Present Hours",
+      "fieldtype": "Float"
+    },
+    {
+      "fieldname": "half_day_hours",
+      "label": "Half Day Hours",
+      "fieldtype": "Float"
+    },
+    {
+      "fieldname": "half_day_remainder",
+      "label": "Half Day Remainder",
+      "fieldtype": "Select",
+      "options": "\nBlock\nAbsent"
+    },
+    {
+      "fieldname": "blank_rule",
+      "label": "Blank Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip"
+    },
+    {
+      "fieldname": "zero_rule",
+      "label": "Zero Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent"
+    },
+    {
+      "fieldname": "overtime_only_rule",
+      "label": "Overtime Only Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nRecord only"
+    },
+    {
+      "fieldname": "shift_rule",
+      "label": "Shift Rule",
+      "fieldtype": "Select",
+      "options": "\nRequire assignment or default\nNo shift"
+    },
+    {
+      "fieldname": "holiday_rule",
+      "label": "Holiday Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nUse daily rule\nSkip"
+    },
+    {
+      "fieldname": "ea_rule",
+      "label": "EA code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "ab_rule",
+      "label": "AB code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "sb_rule",
+      "label": "SB code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "rh_rule",
+      "label": "RH code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "hd_rule",
+      "label": "HD code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "sl_rule",
+      "label": "SL code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "uh_rule",
+      "label": "UH code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "md_rule",
+      "label": "MD code rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    }
+  ],
+  "istable": 0,
+  "track_changes": 1,
+  "autoname": "field:company",
+  "permissions": [
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    }
+  ]
+}

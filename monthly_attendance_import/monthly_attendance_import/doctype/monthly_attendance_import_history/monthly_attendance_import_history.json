@@ -1,0 +1,58 @@
+{
+  "doctype": "DocType",
+  "name": "Monthly Attendance Import History",
+  "module": "Monthly Attendance Import",
+  "engine": "InnoDB",
+  "field_order": [
+    "occurred_at",
+    "actor",
+    "action",
+    "attachment",
+    "fingerprint",
+    "details"
+  ],
+  "fields": [
+    {
+      "fieldname": "occurred_at",
+      "label": "Occurred At",
+      "fieldtype": "Datetime",
+      "in_list_view": 1,
+      "columns": 3
+    },
+    {
+      "fieldname": "actor",
+      "label": "Actor",
+      "fieldtype": "Link",
+      "options": "User",
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "action",
+      "label": "Action",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "columns": 3
+    },
+    {
+      "fieldname": "attachment",
+      "label": "Attachment",
+      "fieldtype": "Attach",
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "fingerprint",
+      "label": "Fingerprint",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "details",
+      "label": "Details",
+      "fieldtype": "Long Text"
+    }
+  ],
+  "istable": 1,
+  "track_changes": 0,
+  "permissions": []
+}

@@ -1,0 +1,37 @@
+{
+  "doctype": "Workspace",
+  "name": "Monthly Attendance Import",
+  "label": "Monthly Attendance Import",
+  "title": "Monthly Attendance Import",
+  "module": "Monthly Attendance Import",
+  "public": 1,
+  "is_hidden": 0,
+  "icon": "calendar",
+  "sequence_id": 35,
+  "content": "[{\"id\": \"0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import\", \"col\": 4}}, {\"id\": \"1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import Policy\", \"col\": 4}}, {\"id\": \"2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Employee Overtime Entry\", \"col\": 4}}]",
+  "roles": [
+    {
+      "role": "HR Manager"
+    }
+  ],
+  "shortcuts": [
+    {
+      "label": "Monthly Attendance Import",
+      "type": "DocType",
+      "link_to": "Monthly Attendance Import",
+      "doc_view": "List"
+    },
+    {
+      "label": "Monthly Attendance Import Policy",
+      "type": "DocType",
+      "link_to": "Monthly Attendance Import Policy",
+      "doc_view": "List"
+    },
+    {
+      "label": "Employee Overtime Entry",
+      "type": "DocType",
+      "link_to": "Employee Overtime Entry",
+      "doc_view": "List"
+    }
+  ]
+}

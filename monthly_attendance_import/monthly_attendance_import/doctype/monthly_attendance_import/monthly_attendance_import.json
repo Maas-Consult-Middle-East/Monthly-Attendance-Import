@@ -1,0 +1,129 @@
+{
+  "doctype": "DocType",
+  "name": "Monthly Attendance Import",
+  "module": "Monthly Attendance Import",
+  "engine": "InnoDB",
+  "field_order": [
+    "company",
+    "month",
+    "year",
+    "attachment",
+    "status",
+    "fingerprint",
+    "requested_by",
+    "error",
+    "proposed_count",
+    "created_count",
+    "skipped_count",
+    "failed_count",
+    "results",
+    "history"
+  ],
+  "fields": [
+    {
+      "fieldname": "company",
+      "label": "Company",
+      "fieldtype": "Link",
+      "options": "Company",
+      "reqd": 1
+    },
+    {
+      "fieldname": "month",
+      "label": "Month",
+      "fieldtype": "Int",
+      "reqd": 1
+    },
+    {
+      "fieldname": "year",
+      "label": "Year",
+      "fieldtype": "Int",
+      "reqd": 1
+    },
+    {
+      "fieldname": "attachment",
+      "label": "Attachment",
+      "fieldtype": "Attach",
+      "options": "{\"restrictions\":{\"allowed_file_types\":[\".xlsx\"]}}"
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nInvalid\nReady\nQueued\nFailed\nImported",
+      "default": "Draft",
+      "read_only": 1
+    },
+    {
+      "fieldname": "fingerprint",
+      "label": "Fingerprint",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "requested_by",
+      "label": "Requested By",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "error",
+      "label": "Error",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "proposed_count",
+      "label": "Proposed Count",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "created_count",
+      "label": "Created Count",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "skipped_count",
+      "label": "Skipped Count",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "failed_count",
+      "label": "Failed Count",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "results",
+      "label": "Results",
+      "fieldtype": "Table",
+      "options": "Monthly Attendance Import Result",
+      "read_only": 1
+    },
+    {
+      "fieldname": "history",
+      "label": "History",
+      "fieldtype": "Table",
+      "options": "Monthly Attendance Import History",
+      "read_only": 1
+    }
+  ],
+  "istable": 0,
+  "track_changes": 1,
+  "autoname": "format:MAI-{YYYY}-{#####}",
+  "permissions": [
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    }
+  ]
+}
