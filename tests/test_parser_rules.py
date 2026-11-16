@@ -6,7 +6,7 @@ from io import BytesIO
 
 from openpyxl import load_workbook
 from monthly_attendance_import.parser import Entry, WorkbookError, parse, MAX_BYTES
-from monthly_attendance_import.rules import decide, RuleError
+from monthly_attendance_import.rules import decide, validate_policy, RuleError
 from monthly_attendance_import.template import make_template
 
 
@@ -112,6 +112,28 @@ class ParserTests(unittest.TestCase):
 
 
 class RulesTests(unittest.TestCase):
+    def test_enabled_policy_reports_missing_decisions_together(self):
+        validate_policy({'enabled': 0})
+        with self.assertRaises(RuleError) as error:
+            validate_policy({'enabled': 1, 'present_hours': 8})
+        self.assertIn('Shift Rule', str(error.exception))
+        self.assertIn('Holiday Rule', str(error.exception))
+        self.assertIn('Overtime Type', str(error.exception))
+        policy = dict(enabled=1, identifier_field='employee_number', thresholds_confirmed=1,
+            present_hours=8, half_day_hours=4, half_day_remainder='Absent', blank_rule='Skip',
+            zero_rule='Skip', overtime_only_rule='Block', shift_rule='No shift', holiday_rule='Block',
+            overtime_type='Test', standard_working_hours=8, f_rule='Block', vacation_rule='Block',
+            **{c.lower() + '_rule':'Block' for c in ('EA','AB','SB','RH','HD','SL','UH','MD')})
+        validate_policy(policy)
+        for code, label in [('vacation', 'VACATION'), ('sl', 'SL')]:
+            pending = dict(policy, **{code+'_rule':'Approved Leave'})
+            with self.assertRaisesRegex(RuleError, label+' Leave Type'):
+                validate_policy(pending)
+            pending[code+'_leave_type'] = 'Approved type'
+            validate_policy(pending)
+        with self.assertRaisesRegex(RuleError, 'Standard Working Hours'):
+            validate_policy(dict(policy, standard_working_hours=25))
+
     def test_present_weekly_off_and_vacation(self):
         entry = replace(self.entry, normal_hours=None, code='P')
         with self.assertRaises(RuleError): decide(entry, dict(self.policy, present_hours=0))

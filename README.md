@@ -64,6 +64,8 @@ Limits: one explicitly selected worksheet per batch, 5 MiB compressed / 30 MiB e
 
 HR Managers configure and enable one **Monthly Attendance Import Policy** per company. Payroll-sensitive defaults are unset. Required unresolved decisions block affected entries, and any error blocks the whole batch.
 
+Enabled policies now require all core hour/shift/holiday/overtime settings and explicit code choices before saving. Choose Block for unused codes. VACATION Leave Type and SL Leave Type are required only when their respective rule is Approved Leave. Disabled policies can remain incomplete. Both policy saves and import validation enforce these requirements on the server; previously incomplete policies produce one consolidated missing-settings error before employee/day processing. The policy validation regression suite passes 32 portable tests. No policy values are auto-filled by this change.
+
 - Identifier mapping: exact Employee ID (`name`) or `employee_number`; unknown, ambiguous and cross-company identifiers fail.
 - Confirm `0 < Half Day < Present <= 24`. Thresholds are inclusive; positive hours below Half Day require manual review. Half Day requires an explicit absent-remainder rule.
 - Blank handling: Skip or Block; never absence. Zero handling: Skip, Absent or Block. Blank N.T with explicit O.T zero requires clarification.

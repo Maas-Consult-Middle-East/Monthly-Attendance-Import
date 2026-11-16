@@ -7,6 +7,37 @@ class RuleError(ValueError):
     pass
 
 
+def validate_policy(policy):
+    """Require explicit decisions before an enabled policy can be used or saved."""
+    if not policy.get("enabled"):
+        return
+    required = {
+        "identifier_field": "Identifier Field", "thresholds_confirmed": "Thresholds Confirmed",
+        "present_hours": "Present Hours", "half_day_hours": "Half Day Hours",
+        "half_day_remainder": "Half Day Remainder", "blank_rule": "Blank Rule",
+        "zero_rule": "Zero Rule", "overtime_only_rule": "Overtime Only Rule",
+        "shift_rule": "Shift Rule", "holiday_rule": "Holiday Rule",
+        "overtime_type": "Overtime Type", "standard_working_hours": "Standard Working Hours",
+        "f_rule": "F Weekly Off Rule", "vacation_rule": "VACATION Rule",
+        **{code.lower() + "_rule": code + " code rule" for code in ("EA", "AB", "SB", "RH", "HD", "SL", "UH", "MD")},
+    }
+    if policy.get("vacation_rule") == "Approved Leave":
+        required["vacation_leave_type"] = "VACATION Leave Type"
+    if policy.get("sl_rule") == "Approved Leave":
+        required["sl_leave_type"] = "SL Leave Type"
+    missing = [label for field, label in required.items() if not policy.get(field)]
+    if missing:
+        raise RuleError("Complete the enabled import policy: " + ", ".join(missing)
+            + ". Select Block for unused code rules.")
+    present = Decimal(str(policy.get("present_hours")))
+    half = Decimal(str(policy.get("half_day_hours")))
+    standard = Decimal(str(policy.get("standard_working_hours")))
+    if not all(v.is_finite() for v in (present, half, standard)) or not 0 < half < present <= 24:
+        raise RuleError("Thresholds must satisfy 0 < Half Day < Present <= 24")
+    if not 0 < standard <= 24:
+        raise RuleError("Standard Working Hours must be greater than 0 and at most 24")
+
+
 @dataclass(frozen=True)
 class Decision:
     status: str | None

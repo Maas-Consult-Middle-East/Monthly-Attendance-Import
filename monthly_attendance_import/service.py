@@ -7,7 +7,7 @@ import frappe
 from frappe.utils import getdate, now_datetime, nowdate
 
 from monthly_attendance_import.parser import parse
-from monthly_attendance_import.rules import decide, normal_hours, RuleError
+from monthly_attendance_import.rules import decide, normal_hours, validate_policy, RuleError
 
 BATCH = "Monthly Attendance Import"
 POLICY = "Monthly Attendance Import Policy"
@@ -88,6 +88,7 @@ def policy_for(batch):
     policy.check_permission("read")
     if not policy.enabled:
         frappe.throw("Enable and configure the company import policy before previewing")
+    validate_policy(policy)
     if policy.identifier_field not in ("name", "employee_number"):
         frappe.throw("Select Employee ID (name) or employee_number in the company policy")
     return policy

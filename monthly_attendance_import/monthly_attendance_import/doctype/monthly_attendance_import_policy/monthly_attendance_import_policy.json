@@ -43,149 +43,174 @@
     {
       "fieldname": "enabled",
       "label": "Enabled",
-      "fieldtype": "Check"
+      "fieldtype": "Check",
+      "description": "Complete all required choices before enabling. Select Block for unused codes."
     },
     {
       "fieldname": "identifier_field",
       "label": "Identifier Field",
       "fieldtype": "Select",
-      "options": "\nname\nemployee_number"
+      "options": "\nname\nemployee_number",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "thresholds_confirmed",
       "label": "Thresholds Confirmed",
-      "fieldtype": "Check"
+      "fieldtype": "Check",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "present_hours",
       "label": "Present Hours",
       "fieldtype": "Float",
-      "description": "Normal hours recorded for P, and the minimum normal hours for numeric entries to count as Present."
+      "description": "Normal hours recorded for P, and the minimum normal hours for numeric entries to count as Present.",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "half_day_hours",
       "label": "Half Day Hours",
-      "fieldtype": "Float"
+      "fieldtype": "Float",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "half_day_remainder",
       "label": "Half Day Remainder",
       "fieldtype": "Select",
-      "options": "\nBlock\nAbsent"
+      "options": "\nBlock\nAbsent",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "blank_rule",
       "label": "Blank Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip"
+      "options": "\nBlock\nSkip",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "zero_rule",
       "label": "Zero Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent"
+      "options": "\nBlock\nSkip\nAbsent",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "overtime_only_rule",
       "label": "Overtime Only Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nRecord only"
+      "options": "\nBlock\nRecord only",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "shift_rule",
       "label": "Shift Rule",
       "fieldtype": "Select",
-      "options": "\nRequire assignment or default\nNo shift"
+      "options": "\nRequire assignment or default\nNo shift",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "holiday_rule",
       "label": "Holiday Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nUse daily rule\nSkip"
+      "options": "\nBlock\nUse daily rule\nSkip",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "ea_rule",
       "label": "EA code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "ab_rule",
       "label": "AB code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "sb_rule",
       "label": "SB code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "rh_rule",
       "label": "RH code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "hd_rule",
       "label": "HD code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "sl_rule",
       "label": "SL code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "uh_rule",
       "label": "UH code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "md_rule",
       "label": "MD code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "overtime_type",
       "fieldtype": "Link",
       "options": "Overtime Type",
-      "label": "Overtime Type"
+      "label": "Overtime Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "standard_working_hours",
       "fieldtype": "Float",
       "label": "Standard Working Hours",
-      "precision": "2"
+      "precision": "2",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "f_rule",
       "label": "F Weekly Off Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip attendance; retain overtime"
+      "options": "\nBlock\nSkip attendance; retain overtime",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "vacation_rule",
       "label": "VACATION Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nApproved Leave"
+      "options": "\nBlock\nApproved Leave",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "vacation_leave_type",
       "label": "VACATION Leave Type",
       "fieldtype": "Link",
-      "options": "Leave Type"
+      "options": "Leave Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1 && doc.vacation_rule == \"Approved Leave\""
     },
     {
       "fieldname": "sl_leave_type",
       "label": "SL Leave Type",
       "fieldtype": "Link",
-      "options": "Leave Type"
+      "options": "Leave Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1 && doc.sl_rule == \"Approved Leave\""
     }
   ],
   "istable": 0,

@@ -41,7 +41,9 @@ class TestMonthlyIntegration(unittest.TestCase):
         self.policy = frappe.get_doc(dict(doctype=service.POLICY, company=self.company, enabled=1,
             identifier_field='employee_number', thresholds_confirmed=1, present_hours=8,
             half_day_hours=4, half_day_remainder='Absent', blank_rule='Skip', zero_rule='Absent',
-            shift_rule='No shift', holiday_rule='Use daily rule', overtime_type=overtime_type.name, standard_working_hours=8)).insert()
+            shift_rule='No shift', holiday_rule='Use daily rule', overtime_type=overtime_type.name, standard_working_hours=8,
+            overtime_only_rule='Record only', f_rule='Block', vacation_rule='Block',
+            **{c.lower()+'_rule':'Block' for c in ('EA','AB','SB','RH','HD','SL','UH','MD')})).insert()
         frappe.db.commit()
 
     def batch(self, hours=8, overtime=2):
