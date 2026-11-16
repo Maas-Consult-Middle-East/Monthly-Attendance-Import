@@ -15,7 +15,8 @@
     "result",
     "message",
     "attendance",
-    "overtime_entry"
+    "overtime_entry",
+    "overtime_slip"
   ],
   "fields": [
     {
@@ -85,13 +86,21 @@
       "fieldtype": "Link",
       "options": "Attendance",
       "in_list_view": 1,
-      "columns": 3
+      "columns": 1
     },
     {
       "fieldname": "overtime_entry",
       "label": "Overtime Entry",
       "fieldtype": "Link",
       "options": "Employee Overtime Entry"
+    },
+    {
+      "fieldname": "overtime_slip",
+      "fieldtype": "Link",
+      "options": "Overtime Slip",
+      "label": "Overtime Slip",
+      "in_list_view": 1,
+      "columns": 2
     }
   ],
   "istable": 1,

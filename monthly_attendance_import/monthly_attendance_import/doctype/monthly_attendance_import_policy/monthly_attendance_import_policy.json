@@ -23,7 +23,9 @@
     "hd_rule",
     "sl_rule",
     "uh_rule",
-    "md_rule"
+    "md_rule",
+    "overtime_type",
+    "standard_working_hours"
   ],
   "fields": [
     {
@@ -143,6 +145,18 @@
       "label": "MD code rule",
       "fieldtype": "Select",
       "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+    },
+    {
+      "fieldname": "overtime_type",
+      "fieldtype": "Link",
+      "options": "Overtime Type",
+      "label": "Overtime Type"
+    },
+    {
+      "fieldname": "standard_working_hours",
+      "fieldtype": "Float",
+      "label": "Standard Working Hours",
+      "precision": "2"
     }
   ],
   "istable": 0,

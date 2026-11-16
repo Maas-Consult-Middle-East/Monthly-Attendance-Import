@@ -8,8 +8,8 @@ from monthly_attendance_import.service import current_rows, lock_employee_docume
 class EmployeeOvertimeEntry(Document):
     def validate(self):
         lock_employee_document(self)
-        if self.is_new() and not self.flags.from_monthly_import:
-            frappe.throw("Create imported overtime through Monthly Attendance Import")
+        if self.is_new():
+            frappe.throw("Legacy overtime creation is disabled. Use native Overtime Slip.")
         employee = frappe.get_doc("Employee", self.employee)
         employee.check_permission("read")
         frappe.get_doc("Company", self.company).check_permission("read")

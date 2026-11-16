@@ -8,7 +8,7 @@
   "is_hidden": 0,
   "icon": "calendar",
   "sequence_id": 35,
-  "content": "[{\"id\": \"0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import\", \"col\": 4}}, {\"id\": \"1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import Policy\", \"col\": 4}}, {\"id\": \"2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Employee Overtime Entry\", \"col\": 4}}]",
+  "content": "[{\"id\": \"0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import\", \"col\": 4}}, {\"id\": \"1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Monthly Attendance Import Policy\", \"col\": 4}}, {\"id\": \"2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Overtime Slip\", \"col\": 4}}]",
   "roles": [
     {
       "role": "HR Manager"
@@ -28,9 +28,9 @@
       "doc_view": "List"
     },
     {
-      "label": "Employee Overtime Entry",
+      "label": "Overtime Slip",
       "type": "DocType",
-      "link_to": "Employee Overtime Entry",
+      "link_to": "Overtime Slip",
       "doc_view": "List"
     }
   ]
