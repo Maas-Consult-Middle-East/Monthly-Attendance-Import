@@ -14,9 +14,26 @@ class Decision:
     reason: str = ""
 
 
+def normal_hours(entry, policy):
+    if entry.code != "P":
+        return entry.normal_hours
+    hours = Decimal(str(policy.get("p_hours") or 0))
+    if not hours.is_finite() or not 0 < hours <= 24:
+        raise RuleError("Configure normal hours for P (greater than 0, at most 24)")
+    if hours + (entry.overtime_hours or 0) > 24:
+        raise RuleError("P normal hours plus overtime exceed 24")
+    return hours
+
+
 def decide(entry, policy):
-    normal, overtime, code = entry.normal_hours, entry.overtime_hours, entry.code
+    normal, overtime, code = normal_hours(entry, policy), entry.overtime_hours, entry.code
     overtime = overtime or Decimal(0)
+    if code == "P":
+        return Decision("Present", overtime)
+    if code == "F":
+        if policy.get("f_rule") != "Skip attendance; retain overtime":
+            raise RuleError("Confirm F weekly-off handling in the import policy")
+        return Decision(None, overtime, "Weekly off: no Attendance; overtime retained")
     if code:
         if overtime:
             raise RuleError("Attendance code with overtime needs explicit normal hours; review manually")

@@ -25,7 +25,10 @@
     "uh_rule",
     "md_rule",
     "overtime_type",
-    "standard_working_hours"
+    "standard_working_hours",
+    "p_hours",
+    "f_rule",
+    "vacation_rule"
   ],
   "fields": [
     {
@@ -157,6 +160,24 @@
       "fieldtype": "Float",
       "label": "Standard Working Hours",
       "precision": "2"
+    },
+    {
+      "fieldname": "p_hours",
+      "label": "Normal Hours for P",
+      "fieldtype": "Float",
+      "precision": "2"
+    },
+    {
+      "fieldname": "f_rule",
+      "label": "F Weekly Off Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip attendance; retain overtime"
+    },
+    {
+      "fieldname": "vacation_rule",
+      "label": "VACATION Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nApproved Leave"
     }
   ],
   "istable": 0,

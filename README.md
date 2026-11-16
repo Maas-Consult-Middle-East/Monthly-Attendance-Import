@@ -44,9 +44,13 @@ The user confirmed the reference orientation: employees in paired rows, days acr
 
 Download Template uses the selected period. Insert copies of rows 6–7 above the notes, keeping employee pairs contiguous. Names/categories are informational and never used for matching. Reference integers in General/0 number format are accepted without padding; text is required for zero-padded or long identifiers. Duplicate identifiers or mismatched pairs fail.
 
+For a multi-sheet workbook, enter the exact **Worksheet** name on the batch. Only that sheet is imported using the same fixed layout; this is not a column-mapping engine. The populated October 2026 workbook uses `ALAbraqi`. A changed worksheet invalidates the preview, and Download Template uses the selected worksheet name.
+
+The confirmed October codes are supported explicitly: `P` creates Present with the policy's **Normal Hours for P** (8 for the local demo); `F` skips Attendance and retains positive overtime when its policy is confirmed; `AB` is configured Absent; `VACATION` requires approved leave. An O.T dash means no overtime, distinct from explicit zero. A code merged across dates within one employee's N.T/O.T pair applies to each covered N.T date and retains the merged source reference. Blank merged ranges remain missing data; merged numeric hours, formulas and cross-employee codes are rejected.
+
 The fixed daily range excludes totals from AK onward, notes, signatures and unrelated dates. November 31 and non-leap February 29 must be empty, even of zero. Formulas and Excel errors in daily cells are rejected. Hours must be finite, nonnegative, at most two decimal places, and normal plus overtime cannot exceed 24. Blanks, zeros and codes remain distinct.
 
-Limits: one worksheet, 5 MiB compressed / 30 MiB expanded ZIP, 1,000 ZIP members, 2,000 rows × 80 columns, 100 employees. Nothing is silently truncated.
+Limits: one explicitly selected worksheet per batch, 5 MiB compressed / 30 MiB expanded ZIP, 1,000 ZIP members, 2,000 rows × 80 columns in the selected worksheet, 100 employees. Nothing in its input range is silently truncated.
 
 ## Explicit company policy
 
@@ -93,6 +97,8 @@ Operational rollback: disable policies and drain jobs; keep the app installed so
 ## Verification
 
 Local results: **26 portable tests and 5 database integration tests passed** on the versions above. An actual long-worker import created the synthetic records described above. Authenticated HTTP checks returned 200 for the import form route, batch API and native Overtime Slip API. Browser verification reached the local login page; the authenticated form rendering was not visually verified in this pass.
+
+October workbook follow-up: **29 portable tests and 7 database integration tests passed**, including worksheet selection, merged vacation, code interpretation, template naming, native P hours and weekly-off overtime without Attendance. Local batch `MAI-2026-00004` retains the unchanged populated workbook and selects `ALAbraqi`: 1,079 proposed employee-days (1,074 Attendance plus five overtime-only dates), 316 skipped, 31 blocked vacation dates for employee number `2605540463`. Positive overtime totals 25 hours. No business records were posted from this batch. Its local employees use synthetic October joining dates; leave approval was not fabricated. Resolve the missing approved leave through HRMS, then preview again. Existing records created by the leave workflow may require reconciliation; they will not be overwritten.
 
 Run portable tests with the v16 Python environment and this checkout on `PYTHONPATH`:
 

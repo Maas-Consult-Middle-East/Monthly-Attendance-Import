@@ -83,6 +83,30 @@ class TestMonthlyIntegration(unittest.TestCase):
         attendance.reload()
         self.assertEqual(attendance.working_hours, 8)
 
+    def test_present_code_preserves_confirmed_hours(self):
+        self.policy.p_hours = 8
+        self.policy.save()
+        batch = self.batch(hours='P')
+        service.execute(batch)
+        batch.reload()
+        self.assertEqual(batch.status, 'Imported', batch.error)
+        attendance = frappe.get_doc('Attendance', batch.results[0].attendance)
+        self.assertEqual(attendance.status, 'Present')
+        self.assertEqual(attendance.working_hours, 8)
+
+    def test_weekly_off_retains_native_overtime_without_attendance(self):
+        self.policy.f_rule = 'Skip attendance; retain overtime'
+        self.policy.save()
+        batch = self.batch(hours='F', overtime=5)
+        service.execute(batch)
+        batch.reload()
+        self.assertEqual(batch.status, 'Imported', batch.error)
+        self.assertFalse(frappe.db.exists('Attendance', {'employee': self.employee.name}))
+        slip = frappe.get_doc('Overtime Slip', batch.results[0].overtime_slip)
+        self.assertEqual(slip.total_overtime_duration, 5)
+        self.assertEqual(slip.docstatus, 0)
+        self.assertFalse(slip.overtime_details[0].reference_document)
+
     def test_database_atomic_rollback(self):
         batch = self.batch()
         from hrms.hr.doctype.overtime_slip.overtime_slip import OvertimeSlip

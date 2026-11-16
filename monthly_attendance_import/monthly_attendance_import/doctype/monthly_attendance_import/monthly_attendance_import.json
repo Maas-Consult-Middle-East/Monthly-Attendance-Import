@@ -8,6 +8,7 @@
     "month",
     "year",
     "attachment",
+    "worksheet",
     "status",
     "fingerprint",
     "requested_by",
@@ -44,6 +45,12 @@
       "label": "Attachment",
       "fieldtype": "Attach",
       "options": "{\"restrictions\":{\"allowed_file_types\":[\".xlsx\"]}}"
+    },
+    {
+      "fieldname": "worksheet",
+      "label": "Worksheet",
+      "fieldtype": "Data",
+      "description": "Exact worksheet name, required for multi-sheet workbooks. Only this worksheet is imported."
     },
     {
       "fieldname": "status",

@@ -7,12 +7,12 @@ import frappe
 from frappe.utils import getdate, now_datetime, nowdate
 
 from monthly_attendance_import.parser import parse
-from monthly_attendance_import.rules import decide, RuleError
+from monthly_attendance_import.rules import decide, normal_hours, RuleError
 
 BATCH = "Monthly Attendance Import"
 POLICY = "Monthly Attendance Import Policy"
 OVERTIME = "Overtime Slip"
-INPUTS = ("company", "month", "year", "attachment")
+INPUTS = ("company", "month", "year", "attachment", "worksheet")
 
 
 def current_rows(doctype, conditions):
@@ -186,8 +186,9 @@ def validate_document(doc):
 
 def plan_entry(batch, policy, entry, employee):
     decision = decide(entry, policy)
+    normal = normal_hours(entry, policy)
     row = dict(employee_number=entry.identifier, employee=employee.name,
-        attendance_date=str(entry.date), normal_hours="" if entry.normal_hours is None else str(entry.normal_hours),
+        attendance_date=str(entry.date), normal_hours="" if normal is None else str(normal),
         overtime_hours="" if entry.overtime_hours is None else str(entry.overtime_hours),
         attendance_code=entry.code, source_cells=entry.cells, proposed_status=decision.status,
         result="Skipped", message=decision.reason)
@@ -221,7 +222,7 @@ def plan_entry(batch, policy, entry, employee):
         attendance = frappe.new_doc("Attendance")
         attendance.update(dict(employee=employee.name,
             company=batch.company, attendance_date=entry.date, status=decision.status,
-            shift=shift, working_hours=float(entry.normal_hours or 0),
+            shift=shift, working_hours=float(normal or 0),
             half_day_status="Absent" if decision.status == "Half Day" else None))
         if leave:
             attendance.update(dict(leave_type=leave[0].leave_type, leave_application=leave[0].name))
@@ -258,7 +259,7 @@ def plan_entry(batch, policy, entry, employee):
 def build_plan(batch):
     content = read_source(batch)
     policy = policy_for(batch)
-    entries, errors = parse(content, int(batch.year), int(batch.month))
+    entries, errors = parse(content, int(batch.year), int(batch.month), batch.get("worksheet"))
     workflows = [workflow_snapshot(dt) for dt in ("Attendance", OVERTIME)]
     employees, employee_errors = {}, {}
     # Stable employee lock order avoids cross-batch lock inversion.
@@ -431,5 +432,5 @@ def download_template(name):
     batch = load_batch(name)
     from monthly_attendance_import.template import make_template
     frappe.local.response.filename = "monthly-attendance-template.xlsx"
-    frappe.local.response.filecontent = make_template(int(batch.year), int(batch.month))
+    frappe.local.response.filecontent = make_template(int(batch.year), int(batch.month), batch.get("worksheet"))
     frappe.local.response.type = "binary"
