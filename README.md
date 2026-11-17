@@ -27,7 +27,7 @@ Restart web and long-worker processes so all native Attendance, Leave Applicatio
 
 The app adds its own schemas and workspace; native schemas are unchanged. The workspace is **Monthly Attendance Imports** (plural) so it does not shadow the **Monthly Attendance Import** DocType route. An idempotent pre-model-sync patch renames an older app-owned workspace without changing import records.
 
-The old Employee Overtime Entry schema and links remain for audit compatibility. New legacy entries are disabled, the workspace links to native Overtime Slip, and the importer never writes both overtime destinations. Existing active legacy overtime on a proposed employee/date blocks posting for manual reconciliation. No destructive migration or automatic conversion occurs.
+Employee Overtime Entry and its result link have been removed. Native Overtime Slip is the only overtime destination. The removal migration refuses to proceed if legacy records or populated audit links exist; those must be reconciled first. No historical records are automatically deleted or converted.
 
 ## Supported Excel layout
 
@@ -106,7 +106,7 @@ The entire batch is validated before inserts. All Attendance records are inserte
 
 On failure, correct the cause and preview again. If a worker dies or loses permission, check its job log, then Validate & Preview; the action refuses while a job remains queued/running and recovers after it ends. Do not run site-specific hooks that commit midway or perform irreversible side effects during insertion.
 
-Operational rollback: disable policies and drain jobs; keep the app installed so audit/legacy links remain readable. Uninstall would destroy app audit tables and requires a separate approved retention/migration plan. No destructive contraction is performed here.
+Operational rollback: disable policies and drain jobs; keep the app installed so audit links remain readable. Uninstall would destroy app audit tables and requires a separate approved retention/migration plan. No destructive contraction is performed here.
 
 ## Verification
 

@@ -12,6 +12,18 @@ from monthly_attendance_import.rules import RuleError
 
 
 class PostingTests(unittest.TestCase):
+    def test_legacy_removal_refuses_records_or_audit_links(self):
+        from monthly_attendance_import.patches.remove_unused_overtime_entry import execute
+        for records, linked in [(1, False), (0, True)]:
+            with patch.object(frappe, 'db', MagicMock()) as db, \
+                 patch.object(frappe, 'throw', side_effect=ValueError('blocked')), \
+                 patch.object(frappe, 'delete_doc') as delete:
+                db.exists.return_value = True
+                db.count.return_value = records
+                db.has_column.return_value = linked
+                with self.assertRaises(ValueError): execute()
+                delete.assert_not_called()
+
     def test_progress_permissions_and_committed_status(self):
         batch = MagicMock(status='Queued')
         with patch.object(frappe, 'get_doc', return_value=batch), patch.object(frappe, 'cache', MagicMock()) as cache:

@@ -266,10 +266,6 @@ def plan_entry(batch, policy, entry, employee):
         validate_document(attendance)
         if attendance.status != expected:
             raise RuleError("Native attendance validation changed the proposed status")
-    legacy = current_rows("Employee Overtime Entry", [("employee", "=", employee.name),
-        ("attendance_date", "=", entry.date), ("docstatus", "<", 2)])
-    if legacy:
-        raise RuleError("Legacy custom overtime exists for this date; reconcile it before native import")
     row["result"] = "Proposed" if attendance or decision.overtime else "Skipped"
     if row["result"] == "Skipped" and row.get("attendance"):
         row["message"] = "Matching approved leave Attendance already exists" if decision.status == "On Leave" else "Identical draft Attendance already exists"
