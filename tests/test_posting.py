@@ -12,6 +12,22 @@ from monthly_attendance_import.rules import RuleError
 
 
 class PostingTests(unittest.TestCase):
+    def test_import_runs_immediately_without_enqueuing(self):
+        batch = frappe._dict(name='BATCH', status='Ready', fingerprint='preview')
+        def finish(doc):
+            self.assertEqual(doc.requested_by, 'importer')
+            self.assertEqual(doc.status, 'Ready')
+            doc.status = 'Imported'
+        with patch.object(s, 'load_batch', return_value=batch), \
+             patch.object(s, 'save_owned'), patch.object(s, 'execute', side_effect=finish) as execute, \
+             patch.object(frappe, 'enqueue') as enqueue, \
+             patch.object(frappe, 'session', frappe._dict(user='importer')):
+            self.assertEqual(s.start_import('BATCH'), {'status': 'Imported'})
+            execute.assert_called_once_with(batch)
+            enqueue.assert_not_called()
+            self.assertEqual(s.start_import('BATCH'), {'status': 'Imported'})
+            execute.assert_called_once()
+
     def test_legacy_removal_refuses_records_or_audit_links(self):
         from monthly_attendance_import.patches.remove_unused_overtime_entry import execute
         for records, linked in [(1, False), (0, True)]:
@@ -25,14 +41,18 @@ class PostingTests(unittest.TestCase):
                 delete.assert_not_called()
 
     def test_progress_permissions_and_committed_status(self):
-        batch = MagicMock(status='Queued')
+        batch = MagicMock(status='Ready', fingerprint='preview')
         with patch.object(frappe, 'get_doc', return_value=batch), patch.object(frappe, 'cache', MagicMock()) as cache:
             batch.check_permission.side_effect = frappe.PermissionError('denied')
             with self.assertRaises(frappe.PermissionError): s.get_progress('PRIVATE')
             cache.get_value.assert_not_called()
             batch.check_permission.side_effect = None
-            cache.get_value.return_value = dict(phase='Finalizing', completed=10, total=10)
-            self.assertEqual(s.get_progress('PRIVATE')['status'], 'Queued')
+            cache.get_value.return_value = dict(phase='Finalizing', completed=10, total=10, fingerprint='preview')
+            progress = s.get_progress('PRIVATE')
+            self.assertEqual(progress['status'], 'Ready')
+            self.assertEqual(progress['completed'], 10)
+            batch.fingerprint = 'changed'
+            self.assertEqual(s.get_progress('PRIVATE')['completed'], 0)
             batch.status = 'Failed'
             result = s.get_progress('PRIVATE')
             self.assertEqual(result['phase'], 'Failed')

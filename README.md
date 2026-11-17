@@ -23,7 +23,7 @@ bench --site your-local-site migrate
 bench build --app monthly_attendance_import
 ```
 
-Restart web and long-worker processes so all native Attendance, Leave Application, Shift Assignment and Overtime Slip writers load the serialization hooks. Keep Redis cache, Redis queue and a long worker running. The importer enqueues under the initiating user and rechecks permissions inside the job. Do not upgrade a shared v15 bench to run this branch.
+Restart web processes so all native Attendance, Leave Application, Shift Assignment and Overtime Slip writers load the serialization hooks. New imports execute immediately in the web request under the initiating user; no import worker or queue is required. Redis remains required by Frappe and progress reporting. Existing jobs queued by earlier app versions retain their compatibility handler. Do not upgrade a shared v15 bench to run this branch.
 
 The app adds its own schemas and workspace; native schemas are unchanged. The workspace is **Monthly Attendance Imports** (plural) so it does not shadow the **Monthly Attendance Import** DocType route. An idempotent pre-model-sync patch renames an older app-owned workspace without changing import records.
 
@@ -85,10 +85,10 @@ Dates outside active employment or in the future fail. Native Attendance validat
 1. Open **Monthly Attendance Imports**, then its import list. Create/save a batch with company/month/year.
 2. Attach a private `.xlsx` file or download the supported blank template.
 3. **Validate & Preview** shows employee/date, source cells, hours/codes, decisions, errors and existing-record links.
-4. Correct inputs/policy and preview again. **Import** queues one atomic job.
+4. Correct inputs/policy and preview again. **Import** immediately validates and posts the batch in one atomic request.
 5. Reload the batch and follow Attendance / Overtime Slip links. Drafts remain for review; the importer never submits them.
 
-The form includes an import progress bar. While queued it polls a permission-checked status endpoint every two seconds and shows validation, processing entries, overtime and finalization. Counts include entry-processing steps and native overtime slips; they are not committed-record counts. Progress stays below 100% until the committed batch status is Imported. Completed/failed results reload automatically. Progress uses an expiring site-local cache and never commits the business transaction. Cache failures do not change posting; no WebSocket service is required. Leaving the form stops polling. Progress tests and the existing portable suite pass (35 tests); JavaScript syntax is checked.
+The form includes an import progress bar. While importing it polls a permission-checked status endpoint every two seconds and shows validation, processing entries, overtime and finalization. Counts include entry-processing steps and native overtime slips; they are not committed-record counts. Progress stays below 100% until the committed batch status is Imported. Completed/failed results reload automatically. Progress uses an expiring site-local cache and never commits the business transaction. Cache failures do not change posting; no WebSocket service is required. Leaving the form stops polling. Progress tests and the existing portable suite pass (35 tests); JavaScript syntax is checked.
 
 One native slip is created per employee/month, with one detail per positive-overtime date. Attendance stores normal hours in `working_hours`. Overtime is recorded only in native Slip details; Attendance auto-overtime fields are not populated as a second path. Details link the newly created or identical existing Attendance where applicable. Explicit month boundaries avoid fabricating salary-structure assignments.
 
@@ -104,7 +104,7 @@ Batch/company/policy and sorted Employee locks serialize posting. Current lockin
 
 The entire batch is validated before inserts. All Attendance records are inserted first, then grouped native Slips are linked and inserted in the same transaction. Failure rolls back all new records and links; actionable failure history is retained. Identical initial drafts can be skipped only when relevant values, type, standard hours, period, references and workflow state match. Changed/submitted records and overlapping slips conflict; nothing is overwritten. Re-uploading no overtime over existing monthly overtime is a conflict.
 
-On failure, correct the cause and preview again. If a worker dies or loses permission, check its job log, then Validate & Preview; the action refuses while a job remains queued/running and recovers after it ends. Do not run site-specific hooks that commit midway or perform irreversible side effects during insertion.
+On failure, correct the cause and preview again. Keep the form open until the immediate request finishes. For a connection or request timeout, reload the batch before retrying: the committed status is authoritative, and an imported batch cannot post twice. Synchronous imports are subject to web-server/proxy request timeouts; removing queue wait does not remove document validation or database work. Earlier queued jobs must finish or be recovered via Validate & Preview after their job ends. Do not run site-specific hooks that commit midway or perform irreversible side effects during insertion.
 
 Operational rollback: disable policies and drain jobs; keep the app installed so audit links remain readable. Uninstall would destroy app audit tables and requires a separate approved retention/migration plan. No destructive contraction is performed here.
 
@@ -123,3 +123,5 @@ PYTHONPATH=/path/to/app /path/to/v16/env/bin/python -m unittest discover -s /pat
 Database tests are in `monthly_attendance_import.tests.test_integration`. They explicitly allow only a `test_monthly_*` site or the isolated `monthly-import-v16.localhost` demo. They commit separate test fixtures for concurrent-connection checks. Never enable them on production.
 
 The local acceptance checks cover native draft insertion, two-day monthly aggregation, no Additional Salary, identical retry, conflicting re-upload, stale preview, atomic rollback when native overtime insertion fails, and concurrent duplicate prevention for both Attendance and Overtime Slip. The original unpopulated workbook is not evidence of a real monthly attendance import; actual daily values are still required.
+
+Immediate-import verification: 37 portable tests passed, including no-enqueue execution, retry idempotency and preview-scoped progress; form JavaScript syntax passed. No manual-test business data was imported during this change.

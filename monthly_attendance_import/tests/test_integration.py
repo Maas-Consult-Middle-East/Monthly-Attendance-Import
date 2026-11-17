@@ -67,7 +67,7 @@ class TestMonthlyIntegration(unittest.TestCase):
 
     def test_import_retry_and_conflicting_reupload(self):
         batch = self.batch()
-        service.execute(batch)
+        self.assertEqual(service.start_import(batch.name)['status'], 'Imported')
         batch.reload()
         self.assertEqual(batch.status, 'Imported', batch.error)
         self.assertEqual(batch.created_count, 1)

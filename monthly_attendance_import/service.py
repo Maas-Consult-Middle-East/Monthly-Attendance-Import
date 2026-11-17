@@ -370,24 +370,19 @@ def start_import(name):
     if batch.status == "Imported":
         return {"status": "Imported"}
     if batch.status == "Queued":
-        return {"status": "Queued"}
+        frappe.throw("This older batch is queued. Wait for it to finish or Validate & Preview after its job ends.")
     if batch.status != "Ready" or not batch.fingerprint:
         frappe.throw("Validate & Preview successfully before importing")
-    read_source(batch)
-    policy_for(batch)
     batch.requested_by = frappe.session.user
-    batch.status = "Queued"
     save_owned(batch)
-    report_progress(batch, "Queued", 0, 0)
-    # Monthly matrices can contain 3100 dates: execute off the web request,
-    # retaining initiating authorization and one transaction for all business writes.
-    frappe.enqueue("monthly_attendance_import.service.run_import", name=batch.name,
-        actor=frappe.session.user, enqueue_after_commit=True, queue="long", timeout=1800,
-        job_id=f"monthly-attendance:{batch.name}", deduplicate=True)
-    return {"status": "Queued"}
+    # Run immediately under the caller's authorization and existing batch lock.
+    # Frappe commits the request after validation and atomic posting completes.
+    execute(batch)
+    return {"status": batch.status}
 
 
 def run_import(name, actor):
+    """Compatibility only for jobs queued before immediate importing was introduced."""
     original_user = frappe.session.user
     try:
         frappe.set_user(actor)
@@ -404,7 +399,7 @@ def report_progress(batch, phase, completed, total):
     # to expose intermediate results. A cache outage must not change posting.
     try:
         frappe.cache.set_value("monthly-import-progress:" + batch.name,
-            dict(phase=phase, completed=completed, total=total), expires_in_sec=3600)
+            dict(phase=phase, completed=completed, total=total, fingerprint=batch.fingerprint), expires_in_sec=3600)
     except Exception:
         pass
 
@@ -414,7 +409,9 @@ def get_progress(name):
     batch = frappe.get_doc(BATCH, name)
     batch.check_permission("read")
     frappe.get_doc("Company", batch.company).check_permission("read")
-    progress = (frappe.cache.get_value("monthly-import-progress:" + name) or {}) if batch.status == "Queued" else {}
+    progress = (frappe.cache.get_value("monthly-import-progress:" + name) or {}) if batch.status in ("Ready", "Queued") else {}
+    if progress.get("fingerprint") != batch.fingerprint:
+        progress = {}
     return dict(status=batch.status, phase=progress.get("phase", batch.status),
         completed=progress.get("completed", 0), total=progress.get("total", 0))
 

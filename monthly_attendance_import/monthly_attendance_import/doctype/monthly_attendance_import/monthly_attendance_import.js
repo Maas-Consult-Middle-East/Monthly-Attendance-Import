@@ -8,12 +8,14 @@ frappe.ui.form.on("Monthly Attendance Import", {
             frm.dashboard.show_progress(title, 100, __("Completed: {0} created, {1} skipped.", [frm.doc.created_count, frm.doc.skipped_count]));
         } else if (frm.doc.status === "Failed") {
             frm.dashboard.show_progress(title, 0, __("Import failed. Business-record changes were rolled back; review the errors."));
+        } else if (frm.monthly_import_running) {
+            frm.dashboard.show_progress(title, 0, __("Importing now — validating the batch."));
         } else {
             frm.dashboard.show_progress(title, 0, frm.doc.status === "Queued"
                 ? __("Queued — waiting for the worker.")
                 : __("{0} entries proposed, {1} skipped. Import has not started.", [frm.doc.proposed_count || 0, frm.doc.skipped_count || 0]));
         }
-        if (frm.doc.status === "Queued") {
+        if (frm.monthly_import_running || frm.doc.status === "Queued") {
             const name = frm.doc.name;
             const generation = frm.monthly_progress_generation;
             const active = () => {
@@ -26,7 +28,7 @@ frappe.ui.form.on("Monthly Attendance Import", {
                     const response = await frappe.call({method: "monthly_attendance_import.service.get_progress", args: {name}});
                     if (!active()) return;
                     const p = response.message;
-                    if (p.status !== "Queued") {
+                    if (!frm.monthly_import_running && p.status !== "Queued") {
                         await frm.reload_doc();
                         return;
                     }
@@ -41,6 +43,7 @@ frappe.ui.form.on("Monthly Attendance Import", {
             };
             frm.monthly_progress_timer = setTimeout(poll, 500);
         }
+        if (frm.monthly_import_running) return;
         frm.add_custom_button(__("Download Template"), () => {
             if (frm.is_dirty()) return frappe.msgprint(__("Save the batch first."));
             window.open(`/api/method/monthly_attendance_import.service.download_template?name=${encodeURIComponent(frm.doc.name)}`);
@@ -56,10 +59,24 @@ frappe.ui.form.on("Monthly Attendance Import", {
         if (frm.doc.status === "Ready") {
             frm.add_custom_button(__("Import"), async () => {
                 if (frm.is_dirty()) return frappe.msgprint(__("Save and preview your changes first."));
-                await frappe.call({method: "monthly_attendance_import.service.start_import",
-                    args: {name: frm.doc.name}, freeze: true});
-                await frm.reload_doc();
-                frappe.show_alert({message: __("Import queued. Progress will update here automatically."), indicator: "blue"});
+                if (frm.monthly_import_running) return;
+                frm.monthly_import_running = true;
+                frm.clear_custom_buttons();
+                frm.disable_save();
+                await frm.trigger("refresh");
+                try {
+                    const response = await frappe.call({method: "monthly_attendance_import.service.start_import",
+                        args: {name: frm.doc.name}});
+                    frappe.show_alert({message: response.message.status === "Imported"
+                        ? __("Import completed.") : __("Import failed. Review the errors."),
+                        indicator: response.message.status === "Imported" ? "green" : "red"});
+                } finally {
+                    frm.monthly_import_running = false;
+                    clearTimeout(frm.monthly_progress_timer);
+                    frm.monthly_progress_generation += 1;
+                    frm.enable_save();
+                    await frm.reload_doc();
+                }
             }).addClass("btn-primary");
         }
         if (frm.doc.status === "Queued") {
