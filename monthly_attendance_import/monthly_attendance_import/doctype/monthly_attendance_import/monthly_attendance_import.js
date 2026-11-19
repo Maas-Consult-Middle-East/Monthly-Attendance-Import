@@ -22,6 +22,17 @@ frappe.ui.form.on("Monthly Attendance Import", {
                 frappe.msgprint(__("Import queued. Reload this document to see results. Records remain drafts for approval."));
             }).addClass("btn-primary");
         }
+        if (frm.doc.status === "Imported") {
+            frm.add_custom_button(__("View Attendance"), () => {
+                const start = `${frm.doc.year}-${String(frm.doc.month).padStart(2, "0")}-01`;
+                const end = moment(start).endOf("month").format("YYYY-MM-DD");
+                frappe.route_options = {
+                    company: frm.doc.company,
+                    attendance_date: ["between", [start, end]],
+                };
+                frappe.set_route("List", "Attendance");
+            }).addClass("btn-primary");
+        }
         if (frm.doc.status === "Queued") {
             frm.dashboard.set_headline_alert(__("Import queued or running. Reload to check results."));
         }
