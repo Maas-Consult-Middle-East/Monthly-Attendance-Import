@@ -72,9 +72,11 @@ def parse(content: bytes, year: int, month: int, worksheet: str | None = None):
                 raise WorkbookError(f"Worksheet {worksheet!r} does not exist")
             ws = wb[worksheet]
         else:
-            if len(wb.worksheets) != 1:
+            # Hidden sheets are invisible in Excel; fall back to the single visible sheet.
+            visible = [s for s in wb.worksheets if s.sheet_state == "visible"]
+            if len(visible) != 1:
                 raise WorkbookError("Select the worksheet to import; other sheets are not imported")
-            ws = wb.worksheets[0]
+            ws = visible[0]
         if not ws.max_row or not ws.max_column or ws.max_row > MAX_ROWS or ws.max_column > MAX_COLUMNS:
             raise WorkbookError("Worksheet dimensions exceed 2000 rows × 80 columns")
         # One bounded pass prevents quadratic streaming reads and ignores totals/notes.

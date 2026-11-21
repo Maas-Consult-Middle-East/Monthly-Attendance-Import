@@ -45,6 +45,12 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(entries[4].overtime_hours, 5)
         with self.assertRaises(WorkbookError):
             parse(output.getvalue(), 2024, 11, 'Missing')
+        book = load_workbook(output)
+        book['Unrelated'].sheet_state = 'hidden'
+        output = BytesIO(); book.save(output); book.close()
+        entries, errors = parse(output.getvalue(), 2024, 11)
+        self.assertFalse(errors)
+        self.assertEqual(entries[0].code, 'VACATION')
 
     def test_merged_numeric_hours_are_not_distributed(self):
         book = load_workbook(BytesIO(workbook({'F6': 8})))

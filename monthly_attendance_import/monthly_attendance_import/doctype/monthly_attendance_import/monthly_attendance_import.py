@@ -37,4 +37,7 @@ class MonthlyAttendanceImport(Document):
                     self.set(f, [] if f in ("results", "history") else None)
 
     def on_trash(self):
-        frappe.throw("Import batches are retained for audit")
+        # Only batches that created records (or may be creating them) are kept for audit.
+        status = frappe.db.get_value(self.doctype, self.name, "status", for_update=True)
+        if status in ("Imported", "Queued"):
+            frappe.throw("Imported or queued batches are retained for audit")

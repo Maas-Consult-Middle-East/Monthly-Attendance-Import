@@ -354,10 +354,14 @@ def preview(name):
     if batch.status == "Imported":
         frappe.throw("This batch is locked; create a new batch for a different upload")
     frappe.db.savepoint("monthly_preview")
+    message_count = len(frappe.local.message_log)
     try:
         plan, errors, fingerprint = build_plan(batch)
     except Exception as exc:
         plan, errors, fingerprint = [], [str(exc)], ""
+    # Native validations msgprint per row (e.g. "Employee is on Leave"); preview reports
+    # blocking problems through `errors`, so drop those informational popups.
+    del frappe.local.message_log[message_count:]
     # Native validation hooks must not persist incidental writes during preview.
     frappe.db.rollback(save_point="monthly_preview")
     record(batch, "Validate & Preview", plan, errors, fingerprint, "Invalid" if errors else "Ready")
