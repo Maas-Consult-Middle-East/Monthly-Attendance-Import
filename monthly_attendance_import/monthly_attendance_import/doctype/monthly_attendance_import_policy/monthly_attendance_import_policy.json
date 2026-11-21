@@ -23,7 +23,13 @@
     "hd_rule",
     "sl_rule",
     "uh_rule",
-    "md_rule"
+    "md_rule",
+    "overtime_type",
+    "standard_working_hours",
+    "f_rule",
+    "vacation_rule",
+    "vacation_leave_type",
+    "sl_leave_type"
   ],
   "fields": [
     {
@@ -32,117 +38,203 @@
       "fieldtype": "Link",
       "options": "Company",
       "reqd": 1,
-      "unique": 1
+      "unique": 1,
+      "description": "Company whose employees and imports use these rules. Create one policy per company."
     },
     {
       "fieldname": "enabled",
       "label": "Enabled",
-      "fieldtype": "Check"
+      "fieldtype": "Check",
+      "description": "Allow imports for this company. Complete all required fields before enabling; disabled policies may remain incomplete. Select Block for unused codes."
     },
     {
       "fieldname": "identifier_field",
       "label": "Identifier Field",
       "fieldtype": "Select",
-      "options": "\nname\nemployee_number"
+      "options": "\nname\nemployee_number",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Match Excel identifiers to Employee Number (employee_number) or the HRMS record ID (name, e.g. HR-EMP-00001). Employee names are never used for matching."
     },
     {
       "fieldname": "thresholds_confirmed",
       "label": "Thresholds Confirmed",
-      "fieldtype": "Check"
+      "fieldtype": "Check",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Confirm that the Present and Half Day hour limits below are approved for this company. Required when enabling the policy."
     },
     {
       "fieldname": "present_hours",
       "label": "Present Hours",
-      "fieldtype": "Float"
+      "fieldtype": "Float",
+      "description": "Normal Time (N.T) hours recorded for P, and the minimum numeric N.T hours counted as Present. Example: 8 means P records 8 hours. Must exceed Half Day Hours and be at most 24.",
+      "mandatory_depends_on": "eval:doc.enabled == 1"
     },
     {
       "fieldname": "half_day_hours",
       "label": "Half Day Hours",
-      "fieldtype": "Float"
+      "fieldtype": "Float",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Minimum numeric N.T hours counted as Half Day. With limits of 4 and 8, 4 to below 8 hours is Half Day. Positive hours below this limit require review."
     },
     {
       "fieldname": "half_day_remainder",
       "label": "Half Day Remainder",
       "fieldtype": "Select",
-      "options": "\nBlock\nAbsent"
+      "options": "\nBlock\nAbsent",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Absent marks the remaining half of a Half Day as absent. Block prevents importing Half Day entries until the remainder rule is resolved."
     },
     {
       "fieldname": "blank_rule",
       "label": "Blank Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip"
+      "options": "\nBlock\nSkip",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Skip creates no record when the daily N.T and O.T cells are blank. Block requires review. Missing data is never treated as absence."
     },
     {
       "fieldname": "zero_rule",
       "label": "Zero Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent"
+      "options": "\nBlock\nSkip\nAbsent",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "For an explicit N.T value of 0 without positive overtime: Skip creates no Attendance, Absent records absence, and Block requires review. A blank cell is different from zero."
     },
     {
       "fieldname": "overtime_only_rule",
       "label": "Overtime Only Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nRecord only"
+      "options": "\nBlock\nRecord only",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "For positive O.T with blank or zero N.T: Record only creates overtime without Attendance; Block requires review. The F Weekly Off Rule handles F separately."
     },
     {
       "fieldname": "shift_rule",
       "label": "Shift Rule",
       "fieldtype": "Select",
-      "options": "\nRequire assignment or default\nNo shift"
+      "options": "\nRequire assignment or default\nNo shift",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Require assignment or default uses one effective Shift Assignment or the employee default shift. No shift requires neither to be assigned; conflicting or multiple shifts are blocked."
     },
     {
       "fieldname": "holiday_rule",
       "label": "Holiday Rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nUse daily rule\nSkip"
+      "options": "\nBlock\nUse daily rule\nSkip",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "For dates on the effective HRMS holiday calendar: Use daily rule follows the Excel entry, Skip creates no record, and Block requires review. Skip cannot discard positive overtime. A Holiday List Assignment is still required."
     },
     {
       "fieldname": "ea_rule",
       "label": "EA code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "EA means Excused Absence. Choose the approved attendance treatment; the code alone does not determine paid leave. Approved Leave requires a submitted, approved full-day application. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "ab_rule",
       "label": "AB code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "AB means Absent. Select Absent to create Absent Attendance. Block requires review; Skip creates no Attendance. Other choices must follow company policy."
     },
     {
       "fieldname": "sb_rule",
       "label": "SB code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "SB means Standby. Choose the company-approved attendance treatment; standby does not automatically mean Present or Absent. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "rh_rule",
       "label": "RH code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "RH means Ramadan Holiday. Choose the company-approved treatment for this Excel code. This does not add dates to the holiday calendar or determine holiday pay. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "hd_rule",
       "label": "HD code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "HD means Holiday. Controls this Excel code; Holiday Rule separately controls calendar dates. Choose the approved attendance treatment. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "sl_rule",
       "label": "SL code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "SL means Sick Leave. Approved Leave requires an existing submitted, approved full-day application matching SL Leave Type. The importer does not approve leave. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "uh_rule",
       "label": "UH code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "UH means Umrah. Approved Leave requires an existing submitted, approved full-day application. The code alone does not select a leave type or approve leave. Block requires review; Skip creates no Attendance."
     },
     {
       "fieldname": "md_rule",
       "label": "MD code rule",
       "fieldtype": "Select",
-      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day"
+      "options": "\nBlock\nSkip\nAbsent\nApproved Leave\nPresent\nHalf Day",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "MD means Half Day. Select Half Day to record that status; Half Day Remainder must be Absent. Block requires review; Skip creates no Attendance. This code does not supply normal hours."
+    },
+    {
+      "fieldname": "overtime_type",
+      "fieldtype": "Link",
+      "options": "Overtime Type",
+      "label": "Overtime Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Existing native HRMS Overtime Type used for imported O.T hours. Its daily maximum is checked. Slips remain drafts; this importer does not generate payments or Additional Salary."
+    },
+    {
+      "fieldname": "standard_working_hours",
+      "fieldtype": "Float",
+      "label": "Standard Working Hours",
+      "precision": "2",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Daily standard-hours reference stored in Overtime Slip details, greater than 0 and at most 24. Overtime comes from O.T cells; it is not calculated by subtracting this value from N.T."
+    },
+    {
+      "fieldname": "f_rule",
+      "label": "F Weekly Off Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nSkip attendance; retain overtime",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "F means Friday weekly off. Skip attendance; retain overtime creates no Attendance but keeps any positive O.T hours. Block requires review. This does not create the holiday calendar."
+    },
+    {
+      "fieldname": "vacation_rule",
+      "label": "VACATION Rule",
+      "fieldtype": "Select",
+      "options": "\nBlock\nApproved Leave",
+      "mandatory_depends_on": "eval:doc.enabled == 1",
+      "description": "Approved Leave requires an existing submitted, approved full-day application covering each VACATION date and matching VACATION Leave Type. Block requires review. A merged VACATION block applies to every covered date."
+    },
+    {
+      "fieldname": "vacation_leave_type",
+      "label": "VACATION Leave Type",
+      "fieldtype": "Link",
+      "options": "Leave Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1 && doc.vacation_rule == \"Approved Leave\"",
+      "description": "Required when VACATION Rule is Approved Leave. Select the exact leave type, such as ANNUAL LEAVE. A type alone is not an approval; a matching approved application must exist."
+    },
+    {
+      "fieldname": "sl_leave_type",
+      "label": "SL Leave Type",
+      "fieldtype": "Link",
+      "options": "Leave Type",
+      "mandatory_depends_on": "eval:doc.enabled == 1 && doc.sl_rule == \"Approved Leave\"",
+      "description": "Required when SL code rule is Approved Leave. Select the exact leave type, such as Sick Leave. An approved application of another type will not satisfy SL."
     }
   ],
   "istable": 0,

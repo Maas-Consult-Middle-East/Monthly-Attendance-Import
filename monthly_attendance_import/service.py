@@ -7,12 +7,12 @@ import frappe
 from frappe.utils import getdate, now_datetime, nowdate
 
 from monthly_attendance_import.parser import parse
-from monthly_attendance_import.rules import decide, RuleError
+from monthly_attendance_import.rules import decide, normal_hours, validate_policy, RuleError
 
 BATCH = "Monthly Attendance Import"
 POLICY = "Monthly Attendance Import Policy"
-OVERTIME = "Employee Overtime Entry"
-INPUTS = ("company", "month", "year", "attachment")
+OVERTIME = "Overtime Slip"
+INPUTS = ("company", "month", "year", "attachment", "worksheet")
 
 
 def current_rows(doctype, conditions):
@@ -88,6 +88,7 @@ def policy_for(batch):
     policy.check_permission("read")
     if not policy.enabled:
         frappe.throw("Enable and configure the company import policy before previewing")
+    validate_policy(policy)
     if policy.identifier_field not in ("name", "employee_number"):
         frappe.throw("Select Employee ID (name) or employee_number in the company policy")
     return policy
@@ -135,29 +136,31 @@ def workflow_snapshot(doctype):
 
 
 def is_holiday_for(employee, shift, day):
-    from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
-    from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
-    holiday_list = (frappe.get_doc("Shift Type", shift).get_holiday_list(employee)
-                    if shift else get_holiday_list_for_employee(employee, False))
+    from hrms.utils.holiday_list import get_holiday_list_for_employee, get_holiday_dates_between
+    holiday_list = (frappe.get_doc("Shift Type", shift).get_holiday_list(employee, day)
+                    if shift else get_holiday_list_for_employee(employee, as_on=day))
     if not holiday_list:
-        raise RuleError("Configure an employee/company or shift Holiday List before importing")
+        raise RuleError("Configure an effective Holiday List Assignment before importing")
     frappe.get_doc("Holiday List", holiday_list, for_update=True)
-    return is_holiday(holiday_list, day)
+    return bool(get_holiday_dates_between(holiday_list, day, day))
 
 
-def same_attendance(existing, proposed):
+def same_attendance(existing, proposed, approved_leave=False):
     fields = ("employee", "company", "attendance_date", "status", "shift", "leave_type",
               "leave_application", "half_day_status", "modify_half_day_status", "late_entry", "early_exit")
-    if existing.docstatus != 0:
+    from frappe.model.workflow import get_workflow_name, get_workflow
+    native_leave = (approved_leave and existing.docstatus == 1 and proposed.status == "On Leave"
+        and proposed.leave_application and not get_workflow_name("Attendance"))
+    if existing.docstatus != 0 and not native_leave:
         return False
     for field in fields:
         if str(existing.get(field) or "") != str(proposed.get(field) or ""):
             return False
     if Decimal(str(existing.working_hours or 0)) != Decimal(str(proposed.working_hours or 0)):
         return False
-    if existing.in_time or existing.out_time or existing.attendance_request:
+    if (existing.in_time or existing.out_time or existing.attendance_request
+        or existing.get("overtime_type") or existing.get("actual_overtime_duration")):
         return False
-    from frappe.model.workflow import get_workflow_name, get_workflow
     if get_workflow_name("Attendance"):
         wf = get_workflow("Attendance")
         if existing.get(wf.workflow_state_field) != proposed.get(wf.workflow_state_field):
@@ -166,17 +169,29 @@ def same_attendance(existing, proposed):
 
 
 def validate_document(doc):
+    doc._action = "save"
     doc.check_permission("create")
-    doc._validate_links()
-    doc.run_method("before_validate")
-    doc.run_method("validate")
-    doc._validate()
+    original_name = doc.name
+    # Native mandatory checks require child.parent even before an insert allocates
+    # a naming-series value. Keep this temporary identity out of the saved plan.
+    if not original_name:
+        doc.name = "new-monthly-import-preview"
+    doc.set_parent_in_children()
+    try:
+        doc._validate_links()
+        doc.run_method("before_validate")
+        doc.run_method("validate")
+        doc._validate()
+    finally:
+        doc.name = original_name
+        doc.set_parent_in_children()
 
 
 def plan_entry(batch, policy, entry, employee):
     decision = decide(entry, policy)
+    normal = normal_hours(entry, policy)
     row = dict(employee_number=entry.identifier, employee=employee.name,
-        attendance_date=str(entry.date), normal_hours="" if entry.normal_hours is None else str(entry.normal_hours),
+        attendance_date=str(entry.date), normal_hours="" if normal is None else str(normal),
         overtime_hours="" if entry.overtime_hours is None else str(entry.overtime_hours),
         attendance_code=entry.code, source_cells=entry.cells, proposed_status=decision.status,
         result="Skipped", message=decision.reason)
@@ -189,7 +204,8 @@ def plan_entry(batch, policy, entry, employee):
     if entry.date > getdate(nowdate()):
         raise RuleError("Future attendance/overtime requires manual processing")
     shift = resolve_shift(employee, entry.date, policy)
-    if is_holiday_for(employee.name, shift, entry.date):
+    holiday = is_holiday_for(employee.name, shift, entry.date)
+    if holiday:
         if policy.holiday_rule == "Skip":
             if decision.overtime:
                 raise RuleError("Holiday skip cannot discard overtime")
@@ -201,18 +217,36 @@ def plan_entry(batch, policy, entry, employee):
         ("docstatus", "=", 1), ("status", "=", "Approved"),
         ("from_date", "<=", entry.date), ("to_date", ">=", entry.date)])
     if decision.status == "On Leave":
+        expected_type = policy.get(entry.code.lower() + "_leave_type") if entry.code in ("VACATION", "SL") else None
+        if entry.code in ("VACATION", "SL") and not expected_type:
+            raise RuleError(f"Select the {entry.code} Leave Type in the import policy")
+        if expected_type:
+            frappe.get_doc("Leave Type", expected_type).check_permission("read")
         if len(leave) != 1 or (leave[0].half_day and getdate(leave[0].half_day_date) == entry.date):
-            raise RuleError("Leave code requires exactly one approved full-day Leave Application")
+            raise RuleError(f"Leave code requires exactly one approved full-day Leave Application{(' of type ' + expected_type) if expected_type else ''}")
+        if expected_type and leave[0].leave_type != expected_type:
+            raise RuleError(f"{entry.code} requires {expected_type}; approved leave is {leave[0].leave_type}")
+        frappe.get_doc("Leave Application", leave[0].name).check_permission("read")
+        leave_type = frappe.get_doc("Leave Type", leave[0].leave_type, for_update=True)
+        leave_type.check_permission("read")
+        if holiday and not leave_type.include_holiday:
+            if current_rows("Attendance", [("employee", "=", employee.name),
+                ("attendance_date", "=", entry.date), ("docstatus", "<", 2)]):
+                raise RuleError("Existing attendance on a holiday excluded from leave requires review")
+            row.update(message="Holiday excluded by approved Leave Type: no Attendance", proposed_status=None)
+            return row, None, None
     elif leave:
         raise RuleError("Conflicts with approved leave; review through the native leave workflow")
     attendance = None
     if decision.status:
-        attendance = frappe.get_doc(dict(doctype="Attendance", employee=employee.name,
+        attendance = frappe.new_doc("Attendance")
+        attendance.update(dict(employee=employee.name,
             company=batch.company, attendance_date=entry.date, status=decision.status,
-            shift=shift, working_hours=float(entry.normal_hours or 0),
+            shift=shift, working_hours=float(normal or 0),
             half_day_status="Absent" if decision.status == "Half Day" else None))
         if leave:
             attendance.update(dict(leave_type=leave[0].leave_type, leave_application=leave[0].name))
+        attendance._action = "save"
         attendance.validate_workflow()
     existing = current_rows("Attendance", [("employee", "=", employee.name),
         ("attendance_date", "=", entry.date), ("docstatus", "<", 2)])
@@ -223,7 +257,7 @@ def plan_entry(batch, policy, entry, employee):
             raise RuleError("Multiple existing attendance records require manual review")
         old = frappe.get_doc("Attendance", existing[0].name, for_update=True)
         old.check_permission("read")
-        if not same_attendance(old, attendance):
+        if not same_attendance(old, attendance, approved_leave=decision.status == "On Leave" and bool(leave)):
             raise RuleError("Conflicting attendance values or workflow state; existing record is untouched")
         row["attendance"] = old.name
         attendance = None
@@ -232,40 +266,16 @@ def plan_entry(batch, policy, entry, employee):
         validate_document(attendance)
         if attendance.status != expected:
             raise RuleError("Native attendance validation changed the proposed status")
-    overtime = None
-    old_ot = current_rows(OVERTIME, [("employee", "=", employee.name),
-        ("attendance_date", "=", entry.date), ("docstatus", "<", 2)])
-    if old_ot:
-        if len(old_ot) != 1:
-            raise RuleError("Multiple overtime entries require manual review")
-        old = frappe.get_doc(OVERTIME, old_ot[0].name, for_update=True)
-        old.check_permission("read")
-        from frappe.model.workflow import get_workflow_name, get_workflow
-        if get_workflow_name(OVERTIME):
-            workflow = get_workflow(OVERTIME)
-            if old.get(workflow.workflow_state_field) != workflow.states[0].state:
-                raise RuleError("Overtime workflow is no longer in its initial draft state")
-        if old.docstatus != 0 or old.approval_status != "Pending" or old.company != batch.company or (
-            Decimal(str(old.overtime_hours)) != decision.overtime
-        ) or (old.attendance or "") != (row.get("attendance") or ""):
-            raise RuleError("Conflicting overtime values, attendance link or approval state")
-        row["overtime_entry"] = old.name
-    elif decision.overtime:
-        overtime = frappe.get_doc(dict(doctype=OVERTIME, employee=employee.name, company=batch.company,
-            attendance_date=entry.date, overtime_hours=float(decision.overtime),
-            import_batch=batch.name, approval_status="Pending", source_cells=entry.cells))
-        overtime.flags.from_monthly_import = True
-        validate_document(overtime)
-    row["result"] = "Proposed" if attendance or overtime else "Skipped"
-    if row["result"] == "Skipped" and (row.get("attendance") or row.get("overtime_entry")):
-        row["message"] = "Identical draft records already exist"
-    return row, attendance, overtime
+    row["result"] = "Proposed" if attendance or decision.overtime else "Skipped"
+    if row["result"] == "Skipped" and row.get("attendance"):
+        row["message"] = "Matching approved leave Attendance already exists" if decision.status == "On Leave" else "Identical draft Attendance already exists"
+    return row, attendance, None
 
 
 def build_plan(batch):
     content = read_source(batch)
     policy = policy_for(batch)
-    entries, errors = parse(content, int(batch.year), int(batch.month))
+    entries, errors = parse(content, int(batch.year), int(batch.month), batch.get("worksheet"))
     workflows = [workflow_snapshot(dt) for dt in ("Attendance", OVERTIME)]
     employees, employee_errors = {}, {}
     # Stable employee lock order avoids cross-batch lock inversion.
@@ -290,6 +300,12 @@ def build_plan(batch):
             errors.append(message)
             plan.append((dict(employee_number=entry.identifier, attendance_date=str(entry.date),
                 source_cells=entry.cells, result="Failed", message=message), None, None))
+    if not errors:
+        try:
+            from monthly_attendance_import.native_overtime import prepare
+            prepare(batch, policy, plan)
+        except Exception as exc:
+            errors.append(str(exc))
     candidate_fields = ("employee", "company", "attendance_date", "status", "shift", "working_hours",
         "leave_type", "leave_application", "half_day_status", "overtime_hours", "approval_status")
     candidates = [[{f: d.get(f) for f in candidate_fields} if d else None for d in (a, o)]
@@ -297,6 +313,10 @@ def build_plan(batch):
     payload = dict(file=hashlib.sha256(content).hexdigest(), inputs=[batch.get(f) for f in INPUTS],
         policy=policy.as_dict(), workflows=workflows, rows=[r for r, _, _ in plan],
         candidates=candidates,
+        native_slips=[dict(employee=o.employee, start=str(o.start_date), end=str(o.end_date),
+            type_revision=o.flags.overtime_type_revision,
+            details=[{f:d.get(f) for f in ("date", "overtime_type", "overtime_duration", "standard_working_hours", "reference_document")} for d in o.overtime_details])
+            for _, _, o in plan if o],
         employees={key: value.modified for key, value in employees.items()})
     fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
     return plan, errors, fingerprint
@@ -334,10 +354,14 @@ def preview(name):
     if batch.status == "Imported":
         frappe.throw("This batch is locked; create a new batch for a different upload")
     frappe.db.savepoint("monthly_preview")
+    message_count = len(frappe.local.message_log)
     try:
         plan, errors, fingerprint = build_plan(batch)
     except Exception as exc:
         plan, errors, fingerprint = [], [str(exc)], ""
+    # Native validations msgprint per row (e.g. "Employee is on Leave"); preview reports
+    # blocking problems through `errors`, so drop those informational popups.
+    del frappe.local.message_log[message_count:]
     # Native validation hooks must not persist incidental writes during preview.
     frappe.db.rollback(save_point="monthly_preview")
     record(batch, "Validate & Preview", plan, errors, fingerprint, "Invalid" if errors else "Ready")
@@ -350,23 +374,19 @@ def start_import(name):
     if batch.status == "Imported":
         return {"status": "Imported"}
     if batch.status == "Queued":
-        return {"status": "Queued"}
+        frappe.throw("This older batch is queued. Wait for it to finish or Validate & Preview after its job ends.")
     if batch.status != "Ready" or not batch.fingerprint:
         frappe.throw("Validate & Preview successfully before importing")
-    read_source(batch)
-    policy_for(batch)
     batch.requested_by = frappe.session.user
-    batch.status = "Queued"
     save_owned(batch)
-    # Monthly matrices can contain 3100 dates: execute off the web request,
-    # retaining initiating authorization and one transaction for all business writes.
-    frappe.enqueue("monthly_attendance_import.service.run_import", name=batch.name,
-        actor=frappe.session.user, enqueue_after_commit=True, queue="long", timeout=1800,
-        job_id=f"monthly-attendance:{batch.name}", deduplicate=True)
-    return {"status": "Queued"}
+    # Run immediately under the caller's authorization and existing batch lock.
+    # Frappe commits the request after validation and atomic posting completes.
+    execute(batch)
+    return {"status": batch.status}
 
 
 def run_import(name, actor):
+    """Compatibility only for jobs queued before immediate importing was introduced."""
     original_user = frappe.session.user
     try:
         frappe.set_user(actor)
@@ -378,15 +398,41 @@ def run_import(name, actor):
         frappe.set_user(original_user)
 
 
+def report_progress(batch, phase, completed, total):
+    # Progress is advisory, outside the business transaction; never commit records
+    # to expose intermediate results. A cache outage must not change posting.
+    try:
+        frappe.cache.set_value("monthly-import-progress:" + batch.name,
+            dict(phase=phase, completed=completed, total=total, fingerprint=batch.fingerprint), expires_in_sec=3600)
+    except Exception:
+        pass
+
+
+@frappe.whitelist()
+def get_progress(name):
+    batch = frappe.get_doc(BATCH, name)
+    batch.check_permission("read")
+    frappe.get_doc("Company", batch.company).check_permission("read")
+    progress = (frappe.cache.get_value("monthly-import-progress:" + name) or {}) if batch.status in ("Ready", "Queued") else {}
+    if progress.get("fingerprint") != batch.fingerprint:
+        progress = {}
+    return dict(status=batch.status, phase=progress.get("phase", batch.status),
+        completed=progress.get("completed", 0), total=progress.get("total", 0))
+
+
 def execute(batch):
     plan, fingerprint = [], ""
     frappe.db.savepoint("monthly_post")
     try:
+        report_progress(batch, "Validating", 0, 0)
         plan, errors, fingerprint = build_plan(batch)
         if errors:
             raise RuleError("\n".join(errors))
         if fingerprint != batch.fingerprint:
             raise RuleError("Preview is stale: input, policy, employee, workflow or existing records changed; preview again")
+        total = len(plan) + sum(bool(o) for _, _, o in plan)
+        completed = 0
+        report_progress(batch, "Processing entries", 0, total)
         for row, attendance, overtime in plan:
             try:
                 if attendance:
@@ -395,14 +441,23 @@ def execute(batch):
                     if attendance.status != expected or attendance.docstatus != 0:
                         raise RuleError("Native hooks changed attendance status; review manually")
                     row["attendance"] = attendance.name
-                if overtime:
-                    overtime.attendance = row.get("attendance")
-                    overtime.insert()
-                    row["overtime_entry"] = overtime.name
-                if attendance or overtime:
+                if attendance:
                     row["result"] = "Created"
+                completed += 1
+                if completed % 25 == 0 or completed == len(plan):
+                    report_progress(batch, "Processing entries", completed, total)
             except Exception as exc:
                 raise RuleError(f"{row['employee_number']} {row['attendance_date']} ({row['source_cells']}): {exc}") from exc
+        from monthly_attendance_import.native_overtime import insert as insert_overtime
+        for row, _, overtime in plan:
+            if overtime:
+                try:
+                    insert_overtime(overtime)
+                    completed += 1
+                    report_progress(batch, "Recording overtime", completed, total)
+                except Exception as exc:
+                    raise RuleError(f"{row['employee_number']} {row['attendance_date']} ({row['source_cells']}): {exc}") from exc
+        report_progress(batch, "Finalizing", completed, total)
         record(batch, "Import", plan, [], fingerprint, "Imported")
     except Exception as exc:
         frappe.db.rollback(save_point="monthly_post")
@@ -411,7 +466,8 @@ def execute(batch):
             if attendance:
                 row.pop("attendance", None)
             if overtime:
-                row.pop("overtime_entry", None)
+                for slip_row in overtime.flags.import_rows:
+                    slip_row.pop("overtime_slip", None)
             if row["result"] in ("Created", "Proposed"):
                 row["result"] = "Failed"
                 row["message"] = "Batch rolled back: " + str(exc)
@@ -424,5 +480,5 @@ def download_template(name):
     batch = load_batch(name)
     from monthly_attendance_import.template import make_template
     frappe.local.response.filename = "monthly-attendance-template.xlsx"
-    frappe.local.response.filecontent = make_template(int(batch.year), int(batch.month))
+    frappe.local.response.filecontent = make_template(int(batch.year), int(batch.month), batch.get("worksheet"))
     frappe.local.response.type = "binary"

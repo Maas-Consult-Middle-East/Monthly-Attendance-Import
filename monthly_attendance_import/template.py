@@ -2,13 +2,16 @@
 from calendar import month_abbr
 from io import BytesIO
 from pathlib import Path
+import re
 from zipfile import ZipFile, ZIP_DEFLATED
 from xml.etree import ElementTree as ET
 
 
-def make_template(year, month):
+def make_template(year, month, worksheet=None):
     if not 1900 <= year <= 2200 or not 1 <= month <= 12:
         raise ValueError("Invalid month/year")
+    if worksheet and (len(worksheet) > 31 or re.search(r"[\\/*?:\[\]]", worksheet)):
+        raise ValueError("Invalid Excel worksheet name")
     source = Path(__file__).parent / "public/templates/monthly-attendance-template.xlsx"
     output = BytesIO()
     # Only change the declared period in the packaged artifact. No workbook engine
@@ -17,6 +20,10 @@ def make_template(year, month):
     with ZipFile(source) as original, ZipFile(output, "w", ZIP_DEFLATED) as result:
         for item in original.infolist():
             content = original.read(item.filename)
+            if item.filename == "xl/workbook.xml" and worksheet:
+                tree = ET.fromstring(content)
+                tree.find(f".//{{{ns}}}sheet").set("name", worksheet)
+                content = ET.tostring(tree, encoding="utf-8", xml_declaration=True)
             if item.filename == "xl/worksheets/sheet1.xml":
                 tree = ET.fromstring(content)
                 cell = tree.find(f".//{{{ns}}}c[@r='M3']")

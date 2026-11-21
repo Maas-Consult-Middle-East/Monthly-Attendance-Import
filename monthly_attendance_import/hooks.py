@@ -11,9 +11,10 @@ required_apps = ["erpnext", "hrms"]
 doc_events = {
     dt: {event: "monthly_attendance_import.service.lock_employee_document"
          for event in ("before_validate", "before_cancel", "on_trash")}
-    for dt in ("Attendance", "Leave Application", "Shift Assignment")
+    for dt in ("Attendance", "Leave Application", "Shift Assignment", "Overtime Slip")
 }
 doc_events["File"] = {
     "validate": "monthly_attendance_import.service.protect_file",
     "on_trash": "monthly_attendance_import.service.protect_file",
 }
+doc_events["Overtime Slip"]["before_validate"] = "monthly_attendance_import.native_overtime.lock_and_check_overlap"

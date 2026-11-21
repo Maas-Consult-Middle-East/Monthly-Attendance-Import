@@ -6,7 +6,7 @@ from io import BytesIO
 
 from openpyxl import load_workbook
 from monthly_attendance_import.parser import Entry, WorkbookError, parse, MAX_BYTES
-from monthly_attendance_import.rules import decide, RuleError
+from monthly_attendance_import.rules import decide, validate_policy, RuleError
 from monthly_attendance_import.template import make_template
 
 
@@ -23,6 +23,42 @@ def workbook(changes=None, year=2024, month=11):
 
 
 class ParserTests(unittest.TestCase):
+    def test_selected_sheet_codes_and_merged_vacation(self):
+        template = load_workbook(BytesIO(make_template(2024, 11, 'ALAbraqi')))
+        self.assertEqual(template.sheetnames, ['ALAbraqi'])
+        template.close()
+        book = load_workbook(BytesIO(workbook({'F6': 'VACATION'})))
+        sheet = book.active
+        sheet.title = 'ALAbraqi'
+        sheet.merge_cells('F6:H7')
+        sheet['I6'], sheet['I7'] = 'P', '-'
+        sheet['J6'], sheet['J7'] = 'F', 5
+        book.create_sheet('Unrelated')['A1'] = '=1/0'
+        output = BytesIO(); book.save(output); book.close()
+        with self.assertRaisesRegex(WorkbookError, 'Select the worksheet'):
+            parse(output.getvalue(), 2024, 11)
+        entries, errors = parse(output.getvalue(), 2024, 11, 'ALAbraqi')
+        self.assertFalse(errors)
+        self.assertEqual([e.code for e in entries[:5]], ['VACATION'] * 3 + ['P', 'F'])
+        self.assertIn('merged F6:H7', entries[1].cells)
+        self.assertIsNone(entries[3].overtime_hours)
+        self.assertEqual(entries[4].overtime_hours, 5)
+        with self.assertRaises(WorkbookError):
+            parse(output.getvalue(), 2024, 11, 'Missing')
+        book = load_workbook(output)
+        book['Unrelated'].sheet_state = 'hidden'
+        output = BytesIO(); book.save(output); book.close()
+        entries, errors = parse(output.getvalue(), 2024, 11)
+        self.assertFalse(errors)
+        self.assertEqual(entries[0].code, 'VACATION')
+
+    def test_merged_numeric_hours_are_not_distributed(self):
+        book = load_workbook(BytesIO(workbook({'F6': 8})))
+        book.active.merge_cells('F6:H7')
+        output = BytesIO(); book.save(output); book.close()
+        with self.assertRaisesRegex(WorkbookError, 'single employee'):
+            parse(output.getvalue(), 2024, 11)
+
     def test_valid_pair_and_leading_zeros(self):
         entries, errors = parse(workbook({'F6': 7.5, 'F7': 2}), 2024, 11)
         self.assertFalse(errors)
@@ -82,6 +118,49 @@ class ParserTests(unittest.TestCase):
 
 
 class RulesTests(unittest.TestCase):
+    def test_enabled_policy_reports_missing_decisions_together(self):
+        validate_policy({'enabled': 0})
+        with self.assertRaises(RuleError) as error:
+            validate_policy({'enabled': 1, 'present_hours': 8})
+        self.assertIn('Shift Rule', str(error.exception))
+        self.assertIn('Holiday Rule', str(error.exception))
+        self.assertIn('Overtime Type', str(error.exception))
+        policy = dict(enabled=1, identifier_field='employee_number', thresholds_confirmed=1,
+            present_hours=8, half_day_hours=4, half_day_remainder='Absent', blank_rule='Skip',
+            zero_rule='Skip', overtime_only_rule='Block', shift_rule='No shift', holiday_rule='Block',
+            overtime_type='Test', standard_working_hours=8, f_rule='Block', vacation_rule='Block',
+            **{c.lower() + '_rule':'Block' for c in ('EA','AB','SB','RH','HD','SL','UH','MD')})
+        validate_policy(policy)
+        for code, label in [('vacation', 'VACATION'), ('sl', 'SL')]:
+            pending = dict(policy, **{code+'_rule':'Approved Leave'})
+            with self.assertRaisesRegex(RuleError, label+' Leave Type'):
+                validate_policy(pending)
+            pending[code+'_leave_type'] = 'Approved type'
+            validate_policy(pending)
+        with self.assertRaisesRegex(RuleError, 'Standard Working Hours'):
+            validate_policy(dict(policy, standard_working_hours=25))
+
+    def test_present_weekly_off_and_vacation(self):
+        entry = replace(self.entry, normal_hours=None, code='P')
+        with self.assertRaises(RuleError): decide(entry, dict(self.policy, present_hours=0))
+        self.policy.update(f_rule='Skip attendance; retain overtime', vacation_rule='Approved Leave')
+        self.assertEqual(decide(entry, self.policy).status, 'Present')
+        self.assertEqual(decide(replace(entry, code='F', overtime_hours=Decimal(5)), self.policy).overtime, 5)
+        self.assertIsNone(decide(replace(entry, code='F'), self.policy).status)
+        self.assertEqual(decide(replace(entry, code='VACATION', overtime_hours=None), self.policy).status, 'On Leave')
+        with self.assertRaises(RuleError): decide(replace(entry, overtime_hours=Decimal(17)), self.policy)
+
+    def test_p_uses_present_hours_even_with_old_separate_value(self):
+        from monthly_attendance_import.rules import normal_hours
+        entry = replace(self.entry, normal_hours=None, code='P')
+        policy = dict(self.policy, present_hours=9, p_hours=6)
+        self.assertEqual(normal_hours(entry, policy), 9)
+        policy['present_hours'] = 7
+        self.assertEqual(normal_hours(entry, policy), 7)
+        for value in (0, -1, 25, 'NaN', 'Infinity'):
+            with self.assertRaises(RuleError):
+                normal_hours(entry, dict(policy, present_hours=value))
+
     def setUp(self):
         self.entry = Entry('0007', date(2024, 11, 1), Decimal(8), Decimal(2), None, 'F6/F7')
         self.policy = dict(thresholds_confirmed=1, half_day_hours=4, present_hours=8,

@@ -1,4 +1,5 @@
 [pre_model_sync]
 monthly_attendance_import.patches.rename_import_workspace
+monthly_attendance_import.patches.remove_unused_overtime_entry
 
 [post_model_sync]

@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 MAX_BYTES = 5 * 1024 * 1024
 MAX_EXPANDED_BYTES = 30 * 1024 * 1024
 MAX_ROWS, MAX_COLUMNS, MAX_EMPLOYEES = 2000, 80, 100
-CODES = ("EA", "AB", "SB", "RH", "HD", "SL", "UH", "MD")
+CODES = ("EA", "AB", "SB", "RH", "HD", "SL", "UH", "MD", "P", "F", "VACATION")
 MONTHS = {m.upper(): i for i, m in enumerate(
     ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
 
@@ -38,6 +38,8 @@ def hours(cell, allow_code=False):
         raise WorkbookError(f"{cell.coordinate}: formulas and Excel errors are forbidden")
     if value is None or value == "":
         return None, None
+    if not allow_code and isinstance(value, str) and value.strip() == "-":
+        return None, None
     if allow_code and isinstance(value, str) and value.strip().upper() in CODES:
         return None, value.strip().upper()
     if isinstance(value, bool):
@@ -51,7 +53,7 @@ def hours(cell, allow_code=False):
         raise WorkbookError(f"{cell.coordinate}: expected 0–24 finite hours (at most two decimals) or a supported N.T code") from None
 
 
-def parse(content: bytes, year: int, month: int):
+def parse(content: bytes, year: int, month: int, worksheet: str | None = None):
     """Return entries (including blanks) and cell-addressed errors; structural errors raise."""
     if not 1900 <= year <= 2200 or not 1 <= month <= 12:
         raise WorkbookError("Select a valid month and year (1900–2200)")
@@ -61,17 +63,43 @@ def parse(content: bytes, year: int, month: int):
         with ZipFile(BytesIO(content)) as z:
             if len(z.infolist()) > 1000 or sum(i.file_size for i in z.infolist()) > MAX_EXPANDED_BYTES:
                 raise WorkbookError("Expanded workbook exceeds safety limits")
-        wb = load_workbook(BytesIO(content), read_only=True, data_only=False, keep_links=False)
+        wb = load_workbook(BytesIO(content), read_only=False, data_only=False, keep_links=False)
     except (BadZipFile, KeyError, OSError, ValueError) as exc:
         raise WorkbookError(f"Invalid xlsx: {exc}") from exc
     try:
-        if len(wb.worksheets) != 1:
-            raise WorkbookError("Exactly one worksheet is required")
-        ws = wb.worksheets[0]
+        if worksheet:
+            if worksheet not in wb.sheetnames:
+                raise WorkbookError(f"Worksheet {worksheet!r} does not exist")
+            ws = wb[worksheet]
+        else:
+            # Hidden sheets are invisible in Excel; fall back to the single visible sheet.
+            visible = [s for s in wb.worksheets if s.sheet_state == "visible"]
+            if len(visible) != 1:
+                raise WorkbookError("Select the worksheet to import; other sheets are not imported")
+            ws = visible[0]
         if not ws.max_row or not ws.max_column or ws.max_row > MAX_ROWS or ws.max_column > MAX_COLUMNS:
             raise WorkbookError("Worksheet dimensions exceed 2000 rows × 80 columns")
         # One bounded pass prevents quadratic streaming reads and ignores totals/notes.
         rows = list(ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=36))
+        last_input_row = 5
+        for index in range(5, len(rows), 2):
+            if rows[index][4].value != "N.T":
+                break
+            last_input_row = index + 2
+        merged_codes = {}
+        for merged in ws.merged_cells.ranges:
+            if merged.max_row < 6 or merged.min_row > last_input_row or merged.min_col > 36 or merged.max_col < 6:
+                continue
+            anchor = ws.cell(merged.min_row, merged.min_col)
+            if anchor.value is None:
+                continue
+            if (merged.min_col < 6 or merged.max_col > 36 or merged.min_row < 6
+                or merged.min_row % 2 or merged.max_row > merged.min_row + 1
+                or anchor.data_type in ("f", "e")
+                or str(anchor.value).strip().upper() not in CODES):
+                raise WorkbookError(f"{merged}: only a single employee's attendance code may span daily cells")
+            for col in range(merged.min_col, merged.max_col + 1):
+                merged_codes[(merged.min_row, col)] = (anchor, str(merged))
         if len(rows) < 7:
             raise WorkbookError("Missing input rows")
         if rows[3][3].value != "EMPLOYEE NUMBER" or rows[3][4].value != "HOURS":
@@ -121,6 +149,10 @@ def parse(content: bytes, year: int, month: int):
                 a, b = nt[day + 4], ot[day + 4]
                 column = get_column_letter(day + 5)
                 cells = f"{ws.title}!{column}{index + 1}/{column}{index + 2}"
+                merged = merged_codes.get((index + 1, day + 5))
+                if merged:
+                    a = merged[0]
+                    cells += f" (merged {merged[1]})"
                 context = f"{identifier} {year:04d}-{month:02d}-{day:02d} ({cells})"
                 if day > monthrange(year, month)[1]:
                     if a.value is not None or b.value is not None:
